@@ -88,9 +88,16 @@ export class DatabaseStorage implements IStorage {
     
     // Get sleep settings for required sleep calculation
     const settings = await this.getSleepSettings();
-    const requiredSleepMinutes = settings?.requiredSleepMinutes;
+    let requiredSleepMinutes = settings?.requiredSleepMinutes;
     const scheduledNapTime = settings?.scheduledNapTime;
     const scheduledBedtime = settings?.scheduledBedtime;
+
+    // Check if we need to calculate average sleep
+    if (requiredSleepMinutes && requiredSleepMinutes < 0) {
+      // Calculate average sleep over past days
+      const daysToAverage = Math.abs(requiredSleepMinutes);
+      requiredSleepMinutes = await this.calculateAverageSleepTime(date, daysToAverage);
+    }
 
     if (entries.length < 2) {
       // Not enough data to calculate metrics
@@ -267,6 +274,68 @@ export class DatabaseStorage implements IStorage {
       
       return created;
     }
+  }
+  
+  /**
+   * Обчислює середню тривалість сну за вказану кількість днів
+   * Використовується, коли в налаштуваннях вказано від'ємне значення
+   */
+  async calculateAverageSleepTime(currentDate: string, daysToAverage: number): Promise<number> {
+    // Отримуємо доступні дати сортовані в порядку спадання (найновіші спочатку)
+    const availableDates = await this.getAvailableDates();
+    
+    // Фільтруємо дати, які не перевищують поточну дату, максимум daysToAverage днів
+    const targetDates = availableDates
+      .filter(date => date <= currentDate)
+      .slice(0, daysToAverage);
+    
+    if (targetDates.length === 0) {
+      // Якщо дат немає, повертаємо значення за замовчуванням
+      return 720; // 12 годин як значення за замовчуванням
+    }
+    
+    // Обчислюємо метрики для кожної дати
+    let totalSleepMinutes = 0;
+    let datesToCalculate = 0;
+    
+    for (const date of targetDates) {
+      // Отримуємо записи для цієї дати
+      const entries = await this.getTimeEntries(date);
+      
+      if (entries.length >= 2) {
+        // Обчислюємо загальний час сну для цієї дати
+        let sleepMinutes = 0;
+        
+        for (let i = 0; i < entries.length - 1; i++) {
+          const currentEntry = entries[i];
+          const nextEntry = entries[i + 1];
+          
+          if (currentEntry.type === 'fell-asleep' && nextEntry.type === 'woke-up') {
+            const startTime = timeToMinutes(currentEntry.time);
+            const endTime = timeToMinutes(nextEntry.time);
+            
+            // Обробка переходу через північ
+            let duration = endTime - startTime;
+            if (duration < 0) {
+              duration = (24 * 60 - startTime) + endTime;
+            }
+            
+            sleepMinutes += duration;
+          }
+        }
+        
+        totalSleepMinutes += sleepMinutes;
+        datesToCalculate++;
+      }
+    }
+    
+    // Обчислюємо середнє значення, якщо є хоча б один день з даними
+    if (datesToCalculate > 0) {
+      return Math.round(totalSleepMinutes / datesToCalculate);
+    }
+    
+    // Якщо немає днів з достатньою кількістю даних
+    return 720; // 12 годин як значення за замовчуванням
   }
 }
 

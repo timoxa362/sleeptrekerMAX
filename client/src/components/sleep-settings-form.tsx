@@ -20,7 +20,10 @@ const timeFormatRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const formSchema = z.object({
   requiredSleepMinutes: z.preprocess(
     (value) => parseInt(value as string, 10),
-    z.number().min(1, "Необхідно вказати хоча б 1 хвилину").max(1440, "Не може бути більше 24 годин")
+    z.number().max(1440, "Не може бути більше 24 годин").refine(
+      (value) => value >= 1 || value <= -1,
+      "Значення повинно бути додатнім для прямої вказівки хвилин або від'ємним для розрахунку середнього"
+    )
   ),
   scheduledNapTime: z.union([
     z.string().regex(timeFormatRegex, "Час має бути в форматі ГГ:ХХ (наприклад, 14:30)"),
@@ -121,9 +124,14 @@ export function SleepSettingsForm() {
                   <FormLabel>Необхідна тривалість сну (хвилини)</FormLabel>
                   <FormControl>
                     <div className="flex flex-col gap-1.5">
-                      <Input type="number" {...field} min={1} max={1440} />
+                      <Input type="number" {...field} min={-365} max={1440} />
                       <div className="text-sm text-muted-foreground">
-                        Поточне значення: {requiredSleepDuration}
+                        {form.watch("requiredSleepMinutes") < 0 
+                          ? `Використовувати середнє значення за ${Math.abs(form.watch("requiredSleepMinutes"))} днів`
+                          : `Поточне значення: ${requiredSleepDuration}`}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Введіть додатне число для явної вказівки хвилин, або від'ємне число (наприклад, -5) для розрахунку середнього значення сну за вказану кількість днів
                       </div>
                     </div>
                   </FormControl>

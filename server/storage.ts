@@ -36,21 +36,26 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getMonthlyMetrics(month: string): Promise<MonthlyMetricsData[]> {
-    // Отримуємо всі дати для вказаного місяця
+    // Отримуємо всі дати для вказаного місяця і наступного місяця (для розрахунку нічного сну)
     // Формат month: YYYY-MM
     const startDate = `${month}-01`;
     const nextMonth = month.split('-')[1] === '12' 
       ? `${parseInt(month.split('-')[0]) + 1}-01` 
       : `${month.split('-')[0]}-${(parseInt(month.split('-')[1]) + 1).toString().padStart(2, '0')}`;
     const endDate = `${nextMonth}-01`;
-
-    // Отримуємо всі записи за вказаний місяць, згруповані за датою
+    
+    // Для розрахунку нічного сну потрібні також записи з першого дня наступного місяця
+    const endDateInclusive = new Date(endDate);
+    endDateInclusive.setDate(endDateInclusive.getDate() + 1);
+    const endDateInclusiveStr = endDateInclusive.toISOString().split('T')[0];
+    
+    // Отримуємо всі записи за вказаний місяць та перший день наступного місяця
     const allEntries = await db.select()
       .from(timeEntries)
       .where(
         and(
           sql`${timeEntries.date} >= ${startDate}`,
-          sql`${timeEntries.date} < ${endDate}`
+          sql`${timeEntries.date} <= ${endDateInclusiveStr}`
         )
       )
       .orderBy(asc(timeEntries.date), asc(timeEntries.time));
@@ -66,8 +71,17 @@ export class DatabaseStorage implements IStorage {
 
     // Обчислюємо метрики для кожної дати
     const result: MonthlyMetricsData[] = [];
-
-    for (const date of Object.keys(entriesByDate).sort()) {
+    
+    // Відсортуємо дати для обробки
+    const sortedDates = Object.keys(entriesByDate).sort();
+    
+    // Опрацьовуємо кожну дату в місяці (крім першого дня наступного місяця)
+    for (let i = 0; i < sortedDates.length; i++) {
+      const date = sortedDates[i];
+      
+      // Пропускаємо дати з наступного місяця (вони потрібні лише для розрахунку нічного сну)
+      if (date >= endDate) continue;
+      
       const entries = entriesByDate[date];
       
       // Розрахунок метрик для цієї дати
@@ -76,23 +90,56 @@ export class DatabaseStorage implements IStorage {
       let nightSleepMinutes = 0;
 
       if (entries.length < 2) {
-        // Недостатньо даних для розрахунку
+        // Недостатньо даних для розрахунку загального часу сну та бадьорості
+        // Але все одно спробуємо розрахувати нічний сон, якщо можливо
+        
+        // Для правильного розрахунку нічного сну потрібно знайти останній запис "заснув"
+        let nightSleepEntry: TimeEntry | null = null;
+        for (let j = entries.length - 1; j >= 0; j--) {
+          if (entries[j].type === 'fell-asleep') {
+            nightSleepEntry = entries[j];
+            break;
+          }
+        }
+        
+        // Якщо є запис засинання і дата не є останньою у місяці
+        const nextDateIndex = i + 1;
+        if (nightSleepEntry && nextDateIndex < sortedDates.length) {
+          const nextDate = sortedDates[nextDateIndex];
+          const nextDayEntries = entriesByDate[nextDate];
+          
+          // Шукаємо перше пробудження наступного дня
+          let morningWakeEntry: TimeEntry | null = null;
+          for (const entry of nextDayEntries || []) {
+            if (entry.type === 'woke-up') {
+              morningWakeEntry = entry;
+              break;
+            }
+          }
+          
+          // Якщо знайдено пробудження наступного дня
+          if (morningWakeEntry) {
+            const nightStartTime = timeToMinutes(nightSleepEntry.time);
+            const morningWakeTime = timeToMinutes(morningWakeEntry.time);
+            
+            // Розрахунок нічного сну (завжди через північ)
+            nightSleepMinutes = (24 * 60 - nightStartTime) + morningWakeTime;
+          }
+        }
+        
         result.push({
           day: date,
-          totalSleepMinutes: 0,
-          totalAwakeMinutes: 0,
-          nightSleepMinutes: 0
+          totalSleepMinutes,
+          totalAwakeMinutes,
+          nightSleepMinutes
         });
         continue;
       }
 
-      // Перевіряємо, чи починається з пробудження
-      const firstIsWakeUp = entries[0].type === 'woke-up';
-
       // Розраховуємо загальний час сну та неспання
-      for (let i = 0; i < entries.length - 1; i++) {
-        const currentEntry = entries[i];
-        const nextEntry = entries[i + 1];
+      for (let j = 0; j < entries.length - 1; j++) {
+        const currentEntry = entries[j];
+        const nextEntry = entries[j + 1];
 
         const startTime = timeToMinutes(currentEntry.time);
         const endTime = timeToMinutes(nextEntry.time);
@@ -112,29 +159,71 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      // Перше ранкове пробудження
-      let morningWakeTime: string | null = null;
-      if (firstIsWakeUp) {
-        morningWakeTime = entries[0].time;
+      // Для правильного розрахунку нічного сну:
+      // 1. Знаходимо останній запис "заснув" для поточного дня
+      // 2. Шукаємо перший запис "прокинувся" для наступного дня
+      
+      // Останній запис "заснув" для поточного дня
+      let nightSleepEntry: TimeEntry | null = null;
+      for (let j = entries.length - 1; j >= 0; j--) {
+        if (entries[j].type === 'fell-asleep') {
+          nightSleepEntry = entries[j];
+          break;
+        }
       }
-
-      // Останній засинання дня
-      let nightSleepStart: string | null = null;
-      const lastEntry = entries[entries.length - 1];
-      if (lastEntry.type === 'fell-asleep') {
-        nightSleepStart = lastEntry.time;
+      
+      // Якщо є запис засинання і дата не є останньою у місяці
+      const nextDateIndex = i + 1;
+      if (nightSleepEntry && nextDateIndex < sortedDates.length) {
+        const nextDate = sortedDates[nextDateIndex];
+        const nextDayEntries = entriesByDate[nextDate];
+        
+        // Шукаємо перше пробудження наступного дня
+        let morningWakeEntry: TimeEntry | null = null;
+        for (const entry of nextDayEntries || []) {
+          if (entry.type === 'woke-up') {
+            morningWakeEntry = entry;
+            break;
+          }
+        }
+        
+        // Якщо знайдено пробудження наступного дня
+        if (morningWakeEntry) {
+          const nightStartTime = timeToMinutes(nightSleepEntry.time);
+          const morningWakeTime = timeToMinutes(morningWakeEntry.time);
+          
+          // Розрахунок нічного сну (завжди через північ)
+          nightSleepMinutes = (24 * 60 - nightStartTime) + morningWakeTime;
+        }
       }
+      
+      // Якщо нічний сон все ще не вдалося розрахувати, використовуємо стару логіку
+      if (nightSleepMinutes === 0) {
+        // Перше ранкове пробудження
+        const firstIsWakeUp = entries[0].type === 'woke-up';
+        let morningWakeTime: string | null = null;
+        if (firstIsWakeUp) {
+          morningWakeTime = entries[0].time;
+        }
 
-      // Розраховуємо нічний сон, якщо є час початку та закінчення
-      if (nightSleepStart && morningWakeTime) {
-        const nightStart = timeToMinutes(nightSleepStart);
-        const morningWake = timeToMinutes(morningWakeTime);
+        // Останнє засинання дня
+        let nightSleepStart: string | null = null;
+        const lastEntry = entries[entries.length - 1];
+        if (lastEntry.type === 'fell-asleep') {
+          nightSleepStart = lastEntry.time;
+        }
 
-        // Обробка переходу через північ
-        if (morningWake < nightStart) {
-          nightSleepMinutes = (24 * 60 - nightStart) + morningWake;
-        } else {
-          nightSleepMinutes = morningWake - nightStart;
+        // Розраховуємо нічний сон, якщо є час початку та закінчення
+        if (nightSleepStart && morningWakeTime) {
+          const nightStart = timeToMinutes(nightSleepStart);
+          const morningWake = timeToMinutes(morningWakeTime);
+
+          // Обробка переходу через північ
+          if (morningWake < nightStart) {
+            nightSleepMinutes = (24 * 60 - nightStart) + morningWake;
+          } else {
+            nightSleepMinutes = morningWake - nightStart;
+          }
         }
       }
 
@@ -261,29 +350,79 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // First morning wake up
-    let morningWakeTime: string | null = null;
-    if (firstIsWakeUp) {
-      morningWakeTime = entries[0].time;
+    // Для правильного розрахунку нічного сну:
+    // 1. Знаходимо останній запис "заснув" для поточного дня
+    // 2. Шукаємо перший запис "прокинувся" для наступного дня
+
+    // Останній запис "заснув" для поточного дня
+    let nightSleepEntry: TimeEntry | null = null;
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (entries[i].type === 'fell-asleep') {
+        nightSleepEntry = entries[i];
+        break;
+      }
     }
 
-    // Last sleep time of the day
-    let nightSleepStart: string | null = null;
-    const lastEntry = entries[entries.length - 1];
-    if (lastEntry.type === 'fell-asleep') {
-      nightSleepStart = lastEntry.time;
+    // Якщо є запис, що дитина заснула в поточний день
+    if (nightSleepEntry) {
+      const nightStartTime = timeToMinutes(nightSleepEntry.time);
+      
+      // Перетворення дати у об'єкт
+      const currentDate = new Date(date);
+      
+      // Розрахунок наступної дати
+      const nextDay = new Date(currentDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayString = nextDay.toISOString().split('T')[0];
+      
+      // Отримуємо записи для наступного дня
+      const nextDayEntries = await this.getTimeEntries(nextDayString);
+      
+      // Шукаємо перший запис "прокинувся" для наступного дня
+      let morningWakeEntry: TimeEntry | null = null;
+      for (const entry of nextDayEntries) {
+        if (entry.type === 'woke-up') {
+          morningWakeEntry = entry;
+          break;
+        }
+      }
+      
+      // Якщо знайдено запис пробудження наступного дня
+      if (morningWakeEntry) {
+        const morningWakeTime = timeToMinutes(morningWakeEntry.time);
+        
+        // Розрахунок нічного сну (з урахуванням переходу через північ)
+        nightSleepMinutes = (24 * 60 - nightStartTime) + morningWakeTime;
+      }
     }
+    
+    // Якщо не вдалося знайти потрібні записи (немає запису засинання або пробудження)
+    // можемо спробувати альтернативний підхід з поточними даними
+    if (nightSleepMinutes === 0) {
+      // First morning wake up
+      let morningWakeTime: string | null = null;
+      if (firstIsWakeUp) {
+        morningWakeTime = entries[0].time;
+      }
 
-    // Calculate night sleep if we have start and end times
-    if (nightSleepStart && morningWakeTime) {
-      const nightStart = timeToMinutes(nightSleepStart);
-      const morningWake = timeToMinutes(morningWakeTime);
+      // Last sleep time of the day
+      let nightSleepStart: string | null = null;
+      const lastEntry = entries[entries.length - 1];
+      if (lastEntry.type === 'fell-asleep') {
+        nightSleepStart = lastEntry.time;
+      }
 
-      // Handle overnight crossing (if morning time is less than night time)
-      if (morningWake < nightStart) {
-        nightSleepMinutes = (24 * 60 - nightStart) + morningWake;
-      } else {
-        nightSleepMinutes = morningWake - nightStart;
+      // Calculate night sleep if we have start and end times
+      if (nightSleepStart && morningWakeTime) {
+        const nightStart = timeToMinutes(nightSleepStart);
+        const morningWake = timeToMinutes(morningWakeTime);
+
+        // Handle overnight crossing (if morning time is less than night time)
+        if (morningWake < nightStart) {
+          nightSleepMinutes = (24 * 60 - nightStart) + morningWake;
+        } else {
+          nightSleepMinutes = morningWake - nightStart;
+        }
       }
     }
 

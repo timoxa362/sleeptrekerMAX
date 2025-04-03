@@ -128,23 +128,20 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
 
   const onSubmit = async (data: FormValues) => {
     try {
-      // Оновлюємо час на поточний перед надсиланням
-      const currentTime = getCurrentTime();
+      // Використовуємо значення часу, яке ввів користувач
+      const userTime = data.time;
       
-      // Оновлюємо час у формі для відображення
-      form.setValue("time", currentTime);
-      
-      // Використовуємо поточний час для валідації
-      if (!validateEntry(data.type, currentTime)) {
+      // Валідація введеного часу
+      if (!validateEntry(data.type, userTime)) {
         return;
       }
 
       setIsSubmitting(true);
       
-      // Ensure we're using the current selected date and time
+      // Використовуємо дані форми як введені користувачем
       const submissionData = {
         type: data.type,
-        time: currentTime, // використовуємо поточний час
+        time: userTime,
         date: selectedDate,
       };
       
@@ -162,7 +159,7 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
       
       toast({
         title: "Запис додано",
-        description: "Ваш запис часу успішно додано о " + currentTime,
+        description: "Ваш запис часу успішно додано о " + userTime,
       });
     } catch (error) {
       toast({
@@ -190,14 +187,22 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
                   name="type"
                   render={({ field }) => (
                     <FormItem>
-                      <Label htmlFor="entry-type" className="text-sm font-medium text-slate-700 mb-1">Тип запису</Label>
-                      <FormControl>
-                        <div className="h-10 px-3 py-2 rounded-md border border-input bg-muted flex items-center">
-                          <span>
-                            {field.value === "woke-up" ? "Прокинувся" : "Заснув"}
-                          </span>
-                        </div>
-                      </FormControl>
+                      <Label htmlFor="entry-type" className="text-sm font-medium text-slate-700 mb-1">Тип запису (автовибір)</Label>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Оберіть тип" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="woke-up">Прокинувся</SelectItem>
+                          <SelectItem value="fell-asleep">Заснув</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </FormItem>
                   )}
                 />
@@ -209,11 +214,13 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
                   name="time"
                   render={({ field }) => (
                     <FormItem>
-                      <Label htmlFor="entry-time" className="text-sm font-medium text-slate-700 mb-1">Час (поточний)</Label>
+                      <Label htmlFor="entry-time" className="text-sm font-medium text-slate-700 mb-1">Час (автооновлення)</Label>
                       <FormControl>
-                        <div className="h-10 px-3 py-2 rounded-md border border-input bg-muted flex items-center">
-                          <span>{field.value}</span>
-                        </div>
+                        <Input 
+                          type="time" 
+                          id="entry-time" 
+                          {...field} 
+                        />
                       </FormControl>
                     </FormItem>
                   )}

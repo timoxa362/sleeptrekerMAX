@@ -40,6 +40,10 @@ export default function Home() {
     date: string;
     sleepCompletionPercentage?: number;
     requiredSleepMinutes?: number;
+    timeToNextScheduledSleep?: {
+      minutes: number;
+      type: 'nap' | 'bedtime';
+    };
   }>({ 
     queryKey: ['/api/metrics', selectedDate],
     queryFn: async ({ queryKey }) => {
@@ -61,7 +65,8 @@ export default function Home() {
     nightSleep: isLoadingMetrics ? "..." : formatDuration(metricsData?.nightSleepMinutes || 0),
     date: metricsData?.date || selectedDate,
     sleepCompletionPercentage: metricsData?.sleepCompletionPercentage,
-    requiredSleepMinutes: metricsData?.requiredSleepMinutes
+    requiredSleepMinutes: metricsData?.requiredSleepMinutes,
+    timeToNextScheduledSleep: metricsData?.timeToNextScheduledSleep
   };
 
   return (

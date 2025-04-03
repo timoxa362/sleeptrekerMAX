@@ -20,6 +20,52 @@ export function formatDuration(minutes: number): string {
   return `${hours}год. ${mins}хв.`;
 }
 
+// Format minutes with grammatically correct Ukrainian words for hours and minutes
+export function formatDurationGrammatical(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  
+  // Ukrainian grammar rules for numbers
+  const hoursWord = getUkrainianHoursForm(hours);
+  const minutesWord = getUkrainianMinutesForm(mins);
+  
+  if (hours > 0 && mins > 0) {
+    return `${hours} ${hoursWord} ${mins} ${minutesWord}`;
+  } else if (hours > 0) {
+    return `${hours} ${hoursWord}`;
+  } else {
+    return `${mins} ${minutesWord}`;
+  }
+}
+
+// Helper function to get grammatically correct form for hours in Ukrainian
+function getUkrainianHoursForm(hours: number): string {
+  const lastDigit = hours % 10;
+  const lastTwoDigits = hours % 100;
+  
+  if (lastDigit === 1 && lastTwoDigits !== 11) {
+    return 'година';
+  } else if ([2, 3, 4].includes(lastDigit) && ![12, 13, 14].includes(lastTwoDigits)) {
+    return 'години';
+  } else {
+    return 'годин';
+  }
+}
+
+// Helper function to get grammatically correct form for minutes in Ukrainian
+function getUkrainianMinutesForm(minutes: number): string {
+  const lastDigit = minutes % 10;
+  const lastTwoDigits = minutes % 100;
+  
+  if (lastDigit === 1 && lastTwoDigits !== 11) {
+    return 'хвилина';
+  } else if ([2, 3, 4].includes(lastDigit) && ![12, 13, 14].includes(lastTwoDigits)) {
+    return 'хвилини';
+  } else {
+    return 'хвилин';
+  }
+}
+
 // Format time for display (keep 24-hour format)
 export function formatTime(timeStr: string): string {
   if (!timeStr) return '';

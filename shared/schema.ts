@@ -15,6 +15,8 @@ export const timeEntries = pgTable("time_entries", {
 export const sleepSettings = pgTable("sleep_settings", {
   id: serial("id").primaryKey(),
   requiredSleepMinutes: integer("required_sleep_minutes").notNull(), // Required amount of sleep in minutes
+  scheduledNapTime: text("scheduled_nap_time"), // Optional scheduled nap time in HH:MM format
+  scheduledBedtime: text("scheduled_bedtime"), // Optional scheduled bedtime in HH:MM format
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -29,6 +31,8 @@ export const insertTimeEntrySchema = createInsertSchema(timeEntries).pick({
 // Create insert schema for sleep settings
 export const insertSleepSettingsSchema = createInsertSchema(sleepSettings).pick({
   requiredSleepMinutes: true,
+  scheduledNapTime: true,
+  scheduledBedtime: true,
 });
 
 // Types
@@ -45,4 +49,8 @@ export interface SleepMetrics {
   date: string; // YYYY-MM-DD format
   sleepCompletionPercentage?: number; // Percentage of required sleep completed
   requiredSleepMinutes?: number; // Required amount of sleep in minutes
+  timeToNextScheduledSleep?: {
+    minutes: number;
+    type: 'nap' | 'bedtime';
+  }; // Time until next scheduled sleep (nap or bedtime)
 }

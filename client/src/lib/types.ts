@@ -15,11 +15,17 @@ export interface SleepMetrics {
   date: string;
   sleepCompletionPercentage?: number;
   requiredSleepMinutes?: number;
+  timeToNextScheduledSleep?: {
+    minutes: number;
+    type: 'nap' | 'bedtime';
+  };
 }
 
 export interface SleepSettings {
   id: number;
   requiredSleepMinutes: number;
+  scheduledNapTime?: string | null; // HH:MM format
+  scheduledBedtime?: string | null; // HH:MM format
   createdAt: string;
   updatedAt: string;
 }

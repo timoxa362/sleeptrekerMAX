@@ -89,6 +89,8 @@ export class DatabaseStorage implements IStorage {
     // Get sleep settings for required sleep calculation
     const settings = await this.getSleepSettings();
     const requiredSleepMinutes = settings?.requiredSleepMinutes;
+    const scheduledNapTime = settings?.scheduledNapTime;
+    const scheduledBedtime = settings?.scheduledBedtime;
 
     if (entries.length < 2) {
       // Not enough data to calculate metrics
@@ -161,13 +163,72 @@ export class DatabaseStorage implements IStorage {
       sleepCompletionPercentage = Math.min(100, Math.round((totalSleepMinutes / requiredSleepMinutes) * 100));
     }
 
+    // Calculate time to next scheduled sleep (nap or bedtime)
+    let timeToNextScheduledSleep: { minutes: number; type: 'nap' | 'bedtime' } | undefined = undefined;
+    
+    // Get current time
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+    
+    // Check if selected date is today
+    const selectedDate = new Date(date);
+    const today = new Date();
+    const isToday = selectedDate.toDateString() === today.toDateString();
+    
+    if (isToday) {
+      let napTimeInMinutes: number | null = null;
+      let bedtimeInMinutes: number | null = null;
+      
+      if (scheduledNapTime) {
+        const [napHour, napMinute] = scheduledNapTime.split(':').map(Number);
+        napTimeInMinutes = napHour * 60 + napMinute;
+      }
+      
+      if (scheduledBedtime) {
+        const [bedHour, bedMinute] = scheduledBedtime.split(':').map(Number);
+        bedtimeInMinutes = bedHour * 60 + bedMinute;
+      }
+      
+      // For both scheduled times, calculate minutes until each
+      let minutesToNap: number | null = null;
+      let minutesToBedtime: number | null = null;
+      
+      if (napTimeInMinutes !== null) {
+        minutesToNap = napTimeInMinutes > currentTimeInMinutes 
+          ? napTimeInMinutes - currentTimeInMinutes 
+          : (24 * 60 - currentTimeInMinutes) + napTimeInMinutes;
+      }
+      
+      if (bedtimeInMinutes !== null) {
+        minutesToBedtime = bedtimeInMinutes > currentTimeInMinutes 
+          ? bedtimeInMinutes - currentTimeInMinutes 
+          : (24 * 60 - currentTimeInMinutes) + bedtimeInMinutes;
+      }
+      
+      // Choose the closest sleep time
+      if (minutesToNap !== null && minutesToBedtime !== null) {
+        if (minutesToNap < minutesToBedtime) {
+          timeToNextScheduledSleep = { minutes: minutesToNap, type: 'nap' };
+        } else {
+          timeToNextScheduledSleep = { minutes: minutesToBedtime, type: 'bedtime' };
+        }
+      } else if (minutesToNap !== null) {
+        timeToNextScheduledSleep = { minutes: minutesToNap, type: 'nap' };
+      } else if (minutesToBedtime !== null) {
+        timeToNextScheduledSleep = { minutes: minutesToBedtime, type: 'bedtime' };
+      }
+    }
+
     return {
       totalSleepMinutes,
       totalAwakeMinutes,
       nightSleepMinutes,
       date,
       requiredSleepMinutes,
-      sleepCompletionPercentage
+      sleepCompletionPercentage,
+      timeToNextScheduledSleep
     };
   }
   

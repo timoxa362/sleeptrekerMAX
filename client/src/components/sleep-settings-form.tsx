@@ -13,12 +13,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
+// Регулярний вираз для формату часу HH:MM
+const timeFormatRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
 // Define the form schema
 const formSchema = z.object({
   requiredSleepMinutes: z.preprocess(
     (value) => parseInt(value as string, 10),
     z.number().min(1, "Необхідно вказати хоча б 1 хвилину").max(1440, "Не може бути більше 24 годин")
   ),
+  scheduledNapTime: z.union([
+    z.string().regex(timeFormatRegex, "Час має бути в форматі ГГ:ХХ (наприклад, 14:30)"),
+    z.string().max(0), // Empty string
+    z.null(),
+  ]).optional(),
+  scheduledBedtime: z.union([
+    z.string().regex(timeFormatRegex, "Час має бути в форматі ГГ:ХХ (наприклад, 20:00)"),
+    z.string().max(0), // Empty string
+    z.null(),
+  ]).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -36,9 +49,13 @@ export function SleepSettingsForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       requiredSleepMinutes: settings?.requiredSleepMinutes || 720, // Default to 12 hours if no settings
+      scheduledNapTime: settings?.scheduledNapTime || '',
+      scheduledBedtime: settings?.scheduledBedtime || '',
     },
     values: {
       requiredSleepMinutes: settings?.requiredSleepMinutes || 720,
+      scheduledNapTime: settings?.scheduledNapTime || '',
+      scheduledBedtime: settings?.scheduledBedtime || '',
     }
   });
   
@@ -114,9 +131,59 @@ export function SleepSettingsForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Збереження..." : "Зберегти налаштування"}
-            </Button>
+            
+            <div className="pt-4 border-t mt-6">
+              <h3 className="text-base font-medium mb-4">Запланований час сну</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="scheduledNapTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Час денного сну</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="12:30" 
+                          {...field} 
+                          value={field.value || ''} 
+                        />
+                      </FormControl>
+                      <div className="text-xs text-muted-foreground">
+                        Формат: ГГ:ХХ (наприклад, 12:30)
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="scheduledBedtime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Час нічного сну</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="20:00" 
+                          {...field} 
+                          value={field.value || ''} 
+                        />
+                      </FormControl>
+                      <div className="text-xs text-muted-foreground">
+                        Формат: ГГ:ХХ (наприклад, 20:00)
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+            
+            <div className="mt-6">
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending ? "Збереження..." : "Зберегти налаштування"}
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>

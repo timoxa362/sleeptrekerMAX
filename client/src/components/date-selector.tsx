@@ -81,7 +81,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
           variant="outline" 
           size="icon" 
           onClick={goToPreviousDay}
-          aria-label="Previous day"
+          aria-label="Попередній день"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -113,7 +113,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
                   className="w-full"
                   onClick={goToToday}
                 >
-                  Today
+                  Сьогодні
                 </Button>
               </div>
             </PopoverContent>
@@ -124,7 +124,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
           variant="outline" 
           size="icon" 
           onClick={goToNextDay}
-          aria-label="Next day"
+          aria-label="Наступний день"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -134,7 +134,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
         <div>
           <Select onValueChange={handleSelectChange} value={selectedDate}>
             <SelectTrigger>
-              <SelectValue placeholder="Select from history" />
+              <SelectValue placeholder="Виберіть із історії" />
             </SelectTrigger>
             <SelectContent>
               {availableDates.map((date) => (

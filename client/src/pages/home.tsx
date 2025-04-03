@@ -62,8 +62,8 @@ export default function Home() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-center mb-2">Child Sleep Tracker</h1>
-        <p className="text-slate-600 text-center">Track and analyze your child's sleep patterns</p>
+        <h1 className="text-2xl font-semibold text-center mb-2">Трекер Сну Макса</h1>
+        <p className="text-slate-600 text-center">Відстежуйте та аналізуйте режим сну вашої дитини</p>
       </header>
 
       <div className="mb-6">

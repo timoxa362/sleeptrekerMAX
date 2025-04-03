@@ -48,8 +48,8 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
   const validateEntry = (type: EntryType, time: string): boolean => {
     if (!time) {
       toast({
-        title: "Invalid time",
-        description: "Please enter a valid time",
+        title: "Недійсний час",
+        description: "Будь ласка, введіть дійсний час",
         variant: "destructive",
       });
       return false;
@@ -63,9 +63,10 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
 
       // Check if entry types alternate (wake-sleep-wake-sleep)
       if (lastEntry.type === type) {
+        const typeText = type === "woke-up" ? "прокинувся" : "заснув";
         toast({
-          title: "Invalid entry type",
-          description: `You cannot add two consecutive "${type}" entries. Entries should alternate between wake and sleep.`,
+          title: "Недійсний тип запису",
+          description: `Ви не можете додати два послідовних записи типу "${typeText}". Записи повинні чергуватися між сном та неспанням.`,
           variant: "destructive",
         });
         return false;
@@ -77,8 +78,8 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
 
       if (newTime < lastTime) {
         toast({
-          title: "Invalid time",
-          description: "New entry time must be after the previous entry time",
+          title: "Недійсний час",
+          description: "Новий час запису повинен бути пізніше попереднього запису",
           variant: "destructive",
         });
         return false;
@@ -114,13 +115,13 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
       form.setValue("type", data.type === "woke-up" ? "fell-asleep" : "woke-up");
       
       toast({
-        title: "Entry added",
-        description: "Your time entry has been added successfully",
+        title: "Запис додано",
+        description: "Ваш запис часу успішно додано",
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to add entry. Please try again.",
+        title: "Помилка",
+        description: "Не вдалося додати запис. Будь ласка, спробуйте ще раз.",
         variant: "destructive",
       });
       console.error("Failed to add entry:", error);
@@ -132,7 +133,7 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
   return (
     <Card className="mb-6">
       <CardContent className="pt-6">
-        <h2 className="text-lg font-medium mb-4">Add New Entry</h2>
+        <h2 className="text-lg font-medium mb-4">Додати новий запис</h2>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -143,19 +144,19 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
                   name="type"
                   render={({ field }) => (
                     <FormItem>
-                      <Label htmlFor="entry-type" className="text-sm font-medium text-slate-700 mb-1">Entry Type</Label>
+                      <Label htmlFor="entry-type" className="text-sm font-medium text-slate-700 mb-1">Тип запису</Label>
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
+                            <SelectValue placeholder="Оберіть тип" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="woke-up">Woke Up</SelectItem>
-                          <SelectItem value="fell-asleep">Fell Asleep</SelectItem>
+                          <SelectItem value="woke-up">Прокинувся</SelectItem>
+                          <SelectItem value="fell-asleep">Заснув</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormItem>
@@ -169,7 +170,7 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
                   name="time"
                   render={({ field }) => (
                     <FormItem>
-                      <Label htmlFor="entry-time" className="text-sm font-medium text-slate-700 mb-1">Time</Label>
+                      <Label htmlFor="entry-time" className="text-sm font-medium text-slate-700 mb-1">Час</Label>
                       <FormControl>
                         <Input 
                           type="time" 
@@ -197,7 +198,7 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
                   disabled={isSubmitting}
                   className="w-full md:w-auto"
                 >
-                  Add Entry
+                  Додати запис
                 </Button>
               </div>
             </div>

@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
@@ -17,13 +15,6 @@ interface DateSelectorProps {
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
   // Форматування вибраної дати для відображення
   const formattedDate = formatDate(selectedDate);
-  
-  // Отримання доступних дат з API
-  const datesQuery = useQuery({
-    queryKey: ['/api/dates'],
-  });
-
-  const availableDates = datesQuery.data as string[] || [];
   
   // Стан для дати календаря
   const [calendarDate, setCalendarDate] = useState<Date | undefined>(
@@ -43,19 +34,20 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
   // Обробка зміни дати в календарі
   const handleCalendarSelect = useCallback((date: Date | undefined) => {
     if (date) {
-      const dateString = date.toISOString().split('T')[0];
-      setCalendarDate(date);
+      // Створюємо нову дату з правильним зсувом часових поясів
+      // Це вирішує проблему зсуву дати на 1 день
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const day = date.getDate();
+      const adjusted = new Date(year, month, day, 12, 0, 0);
+      const dateString = adjusted.toISOString().split('T')[0];
+      
+      setCalendarDate(adjusted);
       onDateChange(dateString);
       // Закриваємо попоовер після вибору дати
       setOpen(false);
     }
   }, [onDateChange]);
-
-  // Обробка зміни дати у випадаючому списку
-  const handleSelectChange = (value: string) => {
-    onDateChange(value);
-    setCalendarDate(new Date(value));
-  };
 
   // Перейти до попереднього дня
   const goToPreviousDay = () => {
@@ -145,23 +137,6 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
-      
-      {availableDates.length > 0 && (
-        <div>
-          <Select onValueChange={handleSelectChange} value={selectedDate}>
-            <SelectTrigger>
-              <SelectValue placeholder="Виберіть із історії" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableDates.map((date) => (
-                <SelectItem key={date} value={date}>
-                  {formatDate(date)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
     </div>
   );
 }

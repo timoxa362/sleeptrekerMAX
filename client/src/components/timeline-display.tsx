@@ -5,7 +5,7 @@ import { TimeEntry } from "@/lib/types";
 import { formatTime, formatDate } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
-import { X, Sun, Moon } from "lucide-react";
+import { X, Sun, Moon, ArrowUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -17,11 +17,20 @@ interface TimelineDisplayProps {
 export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps) {
   const { toast } = useToast();
   const [isClearing, setIsClearing] = useState(false);
+  const [sortNewestFirst, setSortNewestFirst] = useState(true);
   
-  // Filter entries by the selected date and sort by creation date (newest first)
+  // Filter entries by the selected date and sort based on current sort order
   const dateEntries = entries
     .filter(entry => entry.date === selectedDate)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    .sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return sortNewestFirst ? timeB - timeA : timeA - timeB;
+    });
+    
+  const toggleSortOrder = () => {
+    setSortNewestFirst(!sortNewestFirst);
+  };
   
   const handleDeleteEntry = async (id: number) => {
     try {
@@ -79,29 +88,44 @@ export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps)
             {isToday ? "Часова шкала на сьогодні" : `Часова шкала на ${formatDate(selectedDate)}`}
           </h2>
           
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="text-sm text-red-500 hover:text-red-600 font-medium"
-                disabled={dateEntries.length === 0 || isClearing}
+          <div className="flex items-center space-x-2">
+            {dateEntries.length >= 2 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1"
+                onClick={toggleSortOrder}
               >
-                Очистити день
+                <ArrowUpDown className="h-4 w-4" />
+                <span>{sortNewestFirst ? "Найновіші спочатку" : "Найстаріші спочатку"}</span>
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Ви впевнені?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Це видалить усі записи часу для {formatDate(selectedDate)}. Цю дію не можна скасувати.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Скасувати</AlertDialogCancel>
-                <AlertDialogAction onClick={handleClearEntries}>Продовжити</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            )}
+            
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-sm text-red-500 hover:text-red-600 font-medium"
+                  disabled={dateEntries.length === 0 || isClearing}
+                >
+                  Очистити день
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Ви впевнені?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Це видалить усі записи часу для {formatDate(selectedDate)}. Цю дію не можна скасувати.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Скасувати</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearEntries}>Продовжити</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
         
         <div className="space-y-3">

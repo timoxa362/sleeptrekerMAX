@@ -107,7 +107,9 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
       await apiRequest("POST", "/api/entries", submissionData);
       
       // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ['/api/entries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/entries', selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ['/api/metrics'] });
       queryClient.invalidateQueries({ queryKey: ['/api/metrics', selectedDate] });
       queryClient.invalidateQueries({ queryKey: ['/api/dates'] });
       

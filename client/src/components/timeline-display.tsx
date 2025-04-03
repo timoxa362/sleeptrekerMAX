@@ -35,8 +35,11 @@ export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps)
   const handleDeleteEntry = async (id: number) => {
     try {
       await apiRequest("DELETE", `/api/entries/${id}`, undefined);
+      // Оновлюємо всі необхідні запити з правильними ключами
       queryClient.invalidateQueries({ queryKey: ['/api/entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/entries', selectedDate] });
       queryClient.invalidateQueries({ queryKey: ['/api/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/metrics', selectedDate] });
       queryClient.invalidateQueries({ queryKey: ['/api/dates'] });
       
       toast({
@@ -58,8 +61,11 @@ export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps)
       setIsClearing(true);
       // Clear entries for the specific date
       await apiRequest("DELETE", `/api/entries?date=${selectedDate}`, undefined);
+      // Оновлюємо всі необхідні запити з правильними ключами
       queryClient.invalidateQueries({ queryKey: ['/api/entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/entries', selectedDate] });
       queryClient.invalidateQueries({ queryKey: ['/api/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/metrics', selectedDate] });
       queryClient.invalidateQueries({ queryKey: ['/api/dates'] });
       
       toast({

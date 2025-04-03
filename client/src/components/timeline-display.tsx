@@ -18,8 +18,10 @@ export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps)
   const { toast } = useToast();
   const [isClearing, setIsClearing] = useState(false);
   
-  // Filter entries by the selected date
-  const dateEntries = entries.filter(entry => entry.date === selectedDate);
+  // Filter entries by the selected date and sort by creation date (newest first)
+  const dateEntries = entries
+    .filter(entry => entry.date === selectedDate)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   
   const handleDeleteEntry = async (id: number) => {
     try {

@@ -19,15 +19,12 @@ export function formatDuration(minutes: number): string {
   return `${hours}год. ${mins}хв.`;
 }
 
-// Format time for display (convert from 24h to 12h)
+// Format time for display (keep 24-hour format)
 export function formatTime(timeStr: string): string {
   if (!timeStr) return '';
   
-  const [hours, minutes] = timeStr.split(':');
-  const hour = parseInt(hours, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
+  // Just return the original 24-hour time format
+  return `${timeStr}`;
 }
 
 // Get current time in HH:MM format

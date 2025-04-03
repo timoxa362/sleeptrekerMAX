@@ -13,4 +13,13 @@ export interface SleepMetrics {
   totalAwake: string;
   nightSleep: string;
   date: string;
+  sleepCompletionPercentage?: number;
+  requiredSleepMinutes?: number;
+}
+
+export interface SleepSettings {
+  id: number;
+  requiredSleepMinutes: number;
+  createdAt: string;
+  updatedAt: string;
 }

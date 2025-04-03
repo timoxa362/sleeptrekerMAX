@@ -1,4 +1,12 @@
-import { timeEntries, type TimeEntry, type InsertTimeEntry, type SleepMetrics } from "@shared/schema";
+import { 
+  timeEntries, 
+  sleepSettings,
+  type TimeEntry, 
+  type InsertTimeEntry, 
+  type SleepMetrics,
+  type SleepSettings,
+  type InsertSleepSettings
+} from "@shared/schema";
 import { timeToMinutes } from "../client/src/lib/utils";
 import { db } from "./db";
 import { eq, and, desc, asc } from 'drizzle-orm';
@@ -10,6 +18,10 @@ export interface IStorage {
   clearTimeEntries(date?: string): Promise<void>;
   calculateSleepMetrics(date: string): Promise<SleepMetrics>;
   getAvailableDates(): Promise<string[]>;
+  
+  // Sleep settings methods
+  getSleepSettings(): Promise<SleepSettings | undefined>;
+  createOrUpdateSleepSettings(settings: InsertSleepSettings): Promise<SleepSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -73,6 +85,10 @@ export class DatabaseStorage implements IStorage {
 
     // Get all entries for the specific date, sorted by time
     const entries = await this.getTimeEntries(date);
+    
+    // Get sleep settings for required sleep calculation
+    const settings = await this.getSleepSettings();
+    const requiredSleepMinutes = settings?.requiredSleepMinutes;
 
     if (entries.length < 2) {
       // Not enough data to calculate metrics
@@ -80,7 +96,9 @@ export class DatabaseStorage implements IStorage {
         totalSleepMinutes, 
         totalAwakeMinutes, 
         nightSleepMinutes,
-        date 
+        date,
+        requiredSleepMinutes,
+        sleepCompletionPercentage: 0
       };
     }
 
@@ -137,12 +155,57 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // Calculate sleep completion percentage if required sleep is available
+    let sleepCompletionPercentage: number | undefined = undefined;
+    if (requiredSleepMinutes && requiredSleepMinutes > 0) {
+      sleepCompletionPercentage = Math.min(100, Math.round((totalSleepMinutes / requiredSleepMinutes) * 100));
+    }
+
     return {
       totalSleepMinutes,
       totalAwakeMinutes,
       nightSleepMinutes,
-      date
+      date,
+      requiredSleepMinutes,
+      sleepCompletionPercentage
     };
+  }
+  
+  async getSleepSettings(): Promise<SleepSettings | undefined> {
+    // Get the first (and should be only) sleep settings record
+    const settings = await db
+      .select()
+      .from(sleepSettings)
+      .limit(1);
+    
+    return settings[0];
+  }
+  
+  async createOrUpdateSleepSettings(insertSettings: InsertSleepSettings): Promise<SleepSettings> {
+    // Check if settings already exist
+    const existingSettings = await this.getSleepSettings();
+    
+    if (existingSettings) {
+      // Update existing settings
+      const [updated] = await db
+        .update(sleepSettings)
+        .set({
+          ...insertSettings,
+          updatedAt: new Date()
+        })
+        .where(eq(sleepSettings.id, existingSettings.id))
+        .returning();
+      
+      return updated;
+    } else {
+      // Create new settings
+      const [created] = await db
+        .insert(sleepSettings)
+        .values(insertSettings)
+        .returning();
+      
+      return created;
+    }
   }
 }
 

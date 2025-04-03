@@ -5,6 +5,7 @@ import { TimeEntryForm } from "@/components/time-entry-form";
 import { TimelineDisplay } from "@/components/timeline-display";
 import { DateSelector } from "@/components/date-selector";
 import { HelpCard } from "@/components/help-card";
+import { SleepSettingsForm } from "@/components/sleep-settings-form";
 import { TimeEntry, SleepMetrics } from "@/lib/types";
 import { formatDuration } from "@/lib/utils";
 
@@ -37,6 +38,8 @@ export default function Home() {
     totalAwakeMinutes: number; 
     nightSleepMinutes: number;
     date: string;
+    sleepCompletionPercentage?: number;
+    requiredSleepMinutes?: number;
   }>({ 
     queryKey: ['/api/metrics', selectedDate],
     queryFn: async ({ queryKey }) => {
@@ -57,6 +60,8 @@ export default function Home() {
     totalAwake: isLoadingMetrics ? "..." : formatDuration(metricsData?.totalAwakeMinutes || 0),
     nightSleep: isLoadingMetrics ? "..." : formatDuration(metricsData?.nightSleepMinutes || 0),
     date: metricsData?.date || selectedDate,
+    sleepCompletionPercentage: metricsData?.sleepCompletionPercentage,
+    requiredSleepMinutes: metricsData?.requiredSleepMinutes
   };
 
   return (
@@ -76,6 +81,11 @@ export default function Home() {
       <SummaryCards metrics={metrics} />
       <TimeEntryForm entries={entries} selectedDate={selectedDate} />
       <TimelineDisplay entries={entries} selectedDate={selectedDate} />
+      
+      <div className="mt-8">
+        <SleepSettingsForm />
+      </div>
+      
       <HelpCard />
     </div>
   );

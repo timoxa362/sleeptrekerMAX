@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTimeEntrySchema } from "@shared/schema";
+import { insertTimeEntrySchema, insertSleepSettingsSchema } from "@shared/schema";
 import { ZodError } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -82,6 +82,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error calculating metrics:", error);
       res.status(500).json({ message: "Failed to calculate sleep metrics" });
+    }
+  });
+  
+  // Get sleep settings
+  app.get("/api/settings/sleep", async (req, res) => {
+    try {
+      const settings = await storage.getSleepSettings();
+      res.json(settings || { requiredSleepMinutes: 0 });
+    } catch (error) {
+      console.error("Error fetching sleep settings:", error);
+      res.status(500).json({ message: "Failed to fetch sleep settings" });
+    }
+  });
+  
+  // Create or update sleep settings
+  app.post("/api/settings/sleep", async (req, res) => {
+    try {
+      const settings = insertSleepSettingsSchema.parse(req.body);
+      const updatedSettings = await storage.createOrUpdateSleepSettings(settings);
+      res.status(200).json(updatedSettings);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        res.status(400).json({ message: "Invalid settings data", errors: error.errors });
+      } else {
+        console.error("Error updating sleep settings:", error);
+        res.status(500).json({ message: "Failed to update sleep settings" });
+      }
     }
   });
 

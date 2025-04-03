@@ -1,6 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Moon, Sun, Bed } from "lucide-react";
+import { Moon, Sun, Bed, Percent } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { SleepMetrics } from "@/lib/types";
+import { formatDuration } from "@/lib/utils";
 
 interface SummaryCardsProps {
   metrics: SleepMetrics;
@@ -17,6 +19,29 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
             <Moon className="h-4 w-4 text-[#8b5cf6]" />
             <span className="text-xl font-semibold">{metrics.totalSleep}</span>
           </div>
+          
+          {/* Sleep Completion Progress */}
+          {metrics.sleepCompletionPercentage !== undefined && metrics.requiredSleepMinutes && (
+            <div className="mt-2">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>Від необхідного</span>
+                <span className="font-semibold flex items-center">
+                  <Percent className="h-3 w-3 mr-1" />
+                  {metrics.sleepCompletionPercentage}%
+                </span>
+              </div>
+              <Progress 
+                value={metrics.sleepCompletionPercentage} 
+                className={`h-2 ${metrics.sleepCompletionPercentage >= 100 ? "bg-green-500/20" : "bg-[#8b5cf6]/20"}`}
+                style={{
+                  "--progress-foreground": metrics.sleepCompletionPercentage >= 100 ? "rgb(34 197 94)" : "#8b5cf6"
+                } as React.CSSProperties}
+              />
+              <div className="text-xs text-muted-foreground mt-1">
+                Ціль: {formatDuration(metrics.requiredSleepMinutes)}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

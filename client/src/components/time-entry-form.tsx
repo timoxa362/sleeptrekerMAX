@@ -30,20 +30,57 @@ type FormValues = z.infer<typeof timeEntrySchema>;
 export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Стан для поточного часу, який оновлюється щосекунди
+  const [currentTimeDisplay, setCurrentTimeDisplay] = useState(getCurrentTime());
+
+  // Визначаємо тип запису на основі останнього запису для вибраної дати
+  const determineEntryType = (): EntryType => {
+    // Фільтруємо записи для вибраної дати
+    const dateEntries = entries.filter(entry => entry.date === selectedDate);
+    
+    if (dateEntries.length === 0) {
+      // Якщо записів немає, починаємо з "прокинувся"
+      return "woke-up";
+    }
+    
+    // Отримуємо останній запис
+    const lastEntry = dateEntries[dateEntries.length - 1];
+    
+    // Повертаємо протилежний тип
+    return lastEntry.type === "woke-up" ? "fell-asleep" : "woke-up";
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(timeEntrySchema),
     defaultValues: {
-      type: "woke-up",
+      type: determineEntryType(),
       time: getCurrentTime(),
       date: selectedDate,
     },
   });
 
-  // Update form when selected date changes
+  // Оновлюємо форму, коли змінюється вибрана дата або список записів
   useEffect(() => {
+    // Оновлюємо дату
     form.setValue("date", selectedDate);
-  }, [selectedDate, form]);
+    // Оновлюємо тип запису на основі останнього запису
+    form.setValue("type", determineEntryType());
+    // Оновлюємо час на поточний
+    form.setValue("time", getCurrentTime());
+  }, [selectedDate, entries, form]);
+  
+  // Інтервал для оновлення поточного часу кожну секунду
+  useEffect(() => {
+    const updateInterval = setInterval(() => {
+      const newTime = getCurrentTime();
+      setCurrentTimeDisplay(newTime);
+      form.setValue("time", newTime);
+    }, 1000);
+    
+    // Очищуємо інтервал при розмонтуванні компонента
+    return () => clearInterval(updateInterval);
+  }, [form]);
 
   const validateEntry = (type: EntryType, time: string): boolean => {
     if (!time) {
@@ -91,16 +128,23 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
 
   const onSubmit = async (data: FormValues) => {
     try {
-      if (!validateEntry(data.type, data.time)) {
+      // Оновлюємо час на поточний перед надсиланням
+      const currentTime = getCurrentTime();
+      
+      // Оновлюємо час у формі для відображення
+      form.setValue("time", currentTime);
+      
+      // Використовуємо поточний час для валідації
+      if (!validateEntry(data.type, currentTime)) {
         return;
       }
 
       setIsSubmitting(true);
       
-      // Ensure we're using the current selected date
+      // Ensure we're using the current selected date and time
       const submissionData = {
         type: data.type,
-        time: data.time,
+        time: currentTime, // використовуємо поточний час
         date: selectedDate,
       };
       
@@ -118,7 +162,7 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
       
       toast({
         title: "Запис додано",
-        description: "Ваш запис часу успішно додано",
+        description: "Ваш запис часу успішно додано о " + currentTime,
       });
     } catch (error) {
       toast({
@@ -147,20 +191,13 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <Label htmlFor="entry-type" className="text-sm font-medium text-slate-700 mb-1">Тип запису</Label>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Оберіть тип" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="woke-up">Прокинувся</SelectItem>
-                          <SelectItem value="fell-asleep">Заснув</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <div className="h-10 px-3 py-2 rounded-md border border-input bg-muted flex items-center">
+                          <span>
+                            {field.value === "woke-up" ? "Прокинувся" : "Заснув"}
+                          </span>
+                        </div>
+                      </FormControl>
                     </FormItem>
                   )}
                 />
@@ -172,13 +209,11 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
                   name="time"
                   render={({ field }) => (
                     <FormItem>
-                      <Label htmlFor="entry-time" className="text-sm font-medium text-slate-700 mb-1">Час</Label>
+                      <Label htmlFor="entry-time" className="text-sm font-medium text-slate-700 mb-1">Час (поточний)</Label>
                       <FormControl>
-                        <Input 
-                          type="time" 
-                          id="entry-time" 
-                          {...field} 
-                        />
+                        <div className="h-10 px-3 py-2 rounded-md border border-input bg-muted flex items-center">
+                          <span>{field.value}</span>
+                        </div>
                       </FormControl>
                     </FormItem>
                   )}

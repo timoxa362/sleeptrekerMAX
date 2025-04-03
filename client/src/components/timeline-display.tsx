@@ -29,13 +29,13 @@ export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps)
       queryClient.invalidateQueries({ queryKey: ['/api/dates'] });
       
       toast({
-        title: "Entry deleted",
-        description: "Your time entry has been deleted successfully",
+        title: "Запис видалено",
+        description: "Ваш запис часу було успішно видалено",
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to delete entry. Please try again.",
+        title: "Помилка",
+        description: "Не вдалося видалити запис. Будь ласка, спробуйте ще раз.",
         variant: "destructive",
       });
       console.error("Failed to delete entry:", error);
@@ -52,13 +52,13 @@ export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps)
       queryClient.invalidateQueries({ queryKey: ['/api/dates'] });
       
       toast({
-        title: "Entries cleared",
-        description: `All entries for ${formatDate(selectedDate)} have been cleared successfully`,
+        title: "Записи очищено",
+        description: `Усі записи для ${formatDate(selectedDate)} було успішно очищено`,
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to clear entries. Please try again.",
+        title: "Помилка",
+        description: "Не вдалося очистити записи. Будь ласка, спробуйте ще раз.",
         variant: "destructive",
       });
       console.error("Failed to clear entries:", error);
@@ -74,7 +74,7 @@ export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps)
       <CardContent className="pt-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-medium">
-            {isToday ? "Today's Timeline" : `Timeline for ${formatDate(selectedDate)}`}
+            {isToday ? "Часова шкала на сьогодні" : `Часова шкала на ${formatDate(selectedDate)}`}
           </h2>
           
           <AlertDialog>
@@ -84,19 +84,19 @@ export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps)
                 className="text-sm text-red-500 hover:text-red-600 font-medium"
                 disabled={dateEntries.length === 0 || isClearing}
               >
-                Clear Day
+                Очистити день
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogTitle>Ви впевнені?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will remove all time entries for {formatDate(selectedDate)}. This action cannot be undone.
+                  Це видалить усі записи часу для {formatDate(selectedDate)}. Цю дію не можна скасувати.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleClearEntries}>Continue</AlertDialogAction>
+                <AlertDialogCancel>Скасувати</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearEntries}>Продовжити</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -132,7 +132,7 @@ export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps)
                       )}
                     </span>
                     <span className="font-medium">
-                      {entry.type === 'woke-up' ? 'Woke Up' : 'Fell Asleep'}
+                      {entry.type === 'woke-up' ? 'Прокинувся' : 'Заснув'}
                     </span>
                   </div>
                   <div className="text-sm text-slate-500 ml-8">{formatTime(entry.time)}</div>

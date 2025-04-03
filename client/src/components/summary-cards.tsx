@@ -12,7 +12,7 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
       {/* Total Sleep Card */}
       <Card className="border-l-4 border-[#8b5cf6]">
         <CardContent className="pt-4">
-          <h2 className="text-sm font-medium text-slate-500 mb-1">Загальний сон за день</h2>
+          <h2 className="text-sm font-medium text-slate-500 mb-1">Загальний сон Макса за день</h2>
           <div className="flex items-center space-x-2">
             <Moon className="h-4 w-4 text-[#8b5cf6]" />
             <span className="text-xl font-semibold">{metrics.totalSleep}</span>
@@ -23,7 +23,7 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
       {/* Total Awake Card */}
       <Card className="border-l-4 border-[#f97316]">
         <CardContent className="pt-4">
-          <h2 className="text-sm font-medium text-slate-500 mb-1">Час неспання</h2>
+          <h2 className="text-sm font-medium text-slate-500 mb-1">Час неспання Макса</h2>
           <div className="flex items-center space-x-2">
             <Sun className="h-4 w-4 text-[#f97316]" />
             <span className="text-xl font-semibold">{metrics.totalAwake}</span>
@@ -34,7 +34,7 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
       {/* Night Sleep Card */}
       <Card className="border-l-4 border-blue-500">
         <CardContent className="pt-4">
-          <h2 className="text-sm font-medium text-slate-500 mb-1">Тривалість нічного сну</h2>
+          <h2 className="text-sm font-medium text-slate-500 mb-1">Тривалість нічного сну Макса</h2>
           <div className="flex items-center space-x-2">
             <Bed className="h-4 w-4 text-blue-500" />
             <span className="text-xl font-semibold">{metrics.nightSleep}</span>

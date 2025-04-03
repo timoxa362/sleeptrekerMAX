@@ -9,7 +9,14 @@ import {
 } from "@shared/schema";
 import { timeToMinutes } from "../client/src/lib/utils";
 import { db } from "./db";
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { eq, and, desc, asc, sql } from 'drizzle-orm';
+
+export interface MonthlyMetricsData {
+  day: string; // День місяця у форматі YYYY-MM-DD
+  totalSleepMinutes: number;
+  totalAwakeMinutes: number;
+  nightSleepMinutes: number;
+}
 
 export interface IStorage {
   getTimeEntries(date?: string): Promise<TimeEntry[]>;
@@ -19,12 +26,128 @@ export interface IStorage {
   calculateSleepMetrics(date: string): Promise<SleepMetrics>;
   getAvailableDates(): Promise<string[]>;
   
+  // Новий метод для отримання місячних метрик
+  getMonthlyMetrics(month: string): Promise<MonthlyMetricsData[]>;
+  
   // Sleep settings methods
   getSleepSettings(): Promise<SleepSettings | undefined>;
   createOrUpdateSleepSettings(settings: InsertSleepSettings): Promise<SleepSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
+  async getMonthlyMetrics(month: string): Promise<MonthlyMetricsData[]> {
+    // Отримуємо всі дати для вказаного місяця
+    // Формат month: YYYY-MM
+    const startDate = `${month}-01`;
+    const nextMonth = month.split('-')[1] === '12' 
+      ? `${parseInt(month.split('-')[0]) + 1}-01` 
+      : `${month.split('-')[0]}-${(parseInt(month.split('-')[1]) + 1).toString().padStart(2, '0')}`;
+    const endDate = `${nextMonth}-01`;
+
+    // Отримуємо всі записи за вказаний місяць, згруповані за датою
+    const allEntries = await db.select()
+      .from(timeEntries)
+      .where(
+        and(
+          sql`${timeEntries.date} >= ${startDate}`,
+          sql`${timeEntries.date} < ${endDate}`
+        )
+      )
+      .orderBy(asc(timeEntries.date), asc(timeEntries.time));
+
+    // Групуємо записи за датою
+    const entriesByDate = allEntries.reduce((acc, entry) => {
+      if (!acc[entry.date]) {
+        acc[entry.date] = [];
+      }
+      acc[entry.date].push(entry);
+      return acc;
+    }, {} as Record<string, TimeEntry[]>);
+
+    // Обчислюємо метрики для кожної дати
+    const result: MonthlyMetricsData[] = [];
+
+    for (const date of Object.keys(entriesByDate).sort()) {
+      const entries = entriesByDate[date];
+      
+      // Розрахунок метрик для цієї дати
+      let totalSleepMinutes = 0;
+      let totalAwakeMinutes = 0;
+      let nightSleepMinutes = 0;
+
+      if (entries.length < 2) {
+        // Недостатньо даних для розрахунку
+        result.push({
+          day: date,
+          totalSleepMinutes: 0,
+          totalAwakeMinutes: 0,
+          nightSleepMinutes: 0
+        });
+        continue;
+      }
+
+      // Перевіряємо, чи починається з пробудження
+      const firstIsWakeUp = entries[0].type === 'woke-up';
+
+      // Розраховуємо загальний час сну та неспання
+      for (let i = 0; i < entries.length - 1; i++) {
+        const currentEntry = entries[i];
+        const nextEntry = entries[i + 1];
+
+        const startTime = timeToMinutes(currentEntry.time);
+        const endTime = timeToMinutes(nextEntry.time);
+        
+        // Обробка переходу через північ
+        let duration = endTime - startTime;
+        if (duration < 0) {
+          duration = (24 * 60 - startTime) + endTime;
+        }
+
+        if (currentEntry.type === 'woke-up' && nextEntry.type === 'fell-asleep') {
+          // Це період неспання
+          totalAwakeMinutes += duration;
+        } else if (currentEntry.type === 'fell-asleep' && nextEntry.type === 'woke-up') {
+          // Це період сну
+          totalSleepMinutes += duration;
+        }
+      }
+
+      // Перше ранкове пробудження
+      let morningWakeTime: string | null = null;
+      if (firstIsWakeUp) {
+        morningWakeTime = entries[0].time;
+      }
+
+      // Останній засинання дня
+      let nightSleepStart: string | null = null;
+      const lastEntry = entries[entries.length - 1];
+      if (lastEntry.type === 'fell-asleep') {
+        nightSleepStart = lastEntry.time;
+      }
+
+      // Розраховуємо нічний сон, якщо є час початку та закінчення
+      if (nightSleepStart && morningWakeTime) {
+        const nightStart = timeToMinutes(nightSleepStart);
+        const morningWake = timeToMinutes(morningWakeTime);
+
+        // Обробка переходу через північ
+        if (morningWake < nightStart) {
+          nightSleepMinutes = (24 * 60 - nightStart) + morningWake;
+        } else {
+          nightSleepMinutes = morningWake - nightStart;
+        }
+      }
+
+      result.push({
+        day: date,
+        totalSleepMinutes,
+        totalAwakeMinutes,
+        nightSleepMinutes
+      });
+    }
+
+    return result;
+  }
   async getTimeEntries(date?: string): Promise<TimeEntry[]> {
     if (date) {
       return db.select()

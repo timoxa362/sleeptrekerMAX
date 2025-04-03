@@ -5,6 +5,22 @@ import { insertTimeEntrySchema, insertSleepSettingsSchema } from "@shared/schema
 import { ZodError } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Новий API endpoint для отримання місячних метрик
+  app.get('/api/metrics/monthly', async (req, res) => {
+    try {
+      const month = req.query.month as string; // Формат YYYY-MM
+      
+      if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ error: 'Необхідно вказати місяць у форматі YYYY-MM' });
+      }
+      
+      const monthlyData = await storage.getMonthlyMetrics(month);
+      res.json(monthlyData);
+    } catch (error) {
+      console.error('Error fetching monthly metrics:', error);
+      res.status(500).json({ error: 'Помилка отримання місячних метрик' });
+    }
+  });
   // Get all time entries with optional date filter
   app.get("/api/entries", async (req, res) => {
     try {

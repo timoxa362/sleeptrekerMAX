@@ -6,6 +6,7 @@ import { TimelineDisplay } from "@/components/timeline-display";
 import { DateSelector } from "@/components/date-selector";
 import { HelpCard } from "@/components/help-card";
 import { SleepSettingsForm } from "@/components/sleep-settings-form";
+import { MonthlySleepChart } from "@/components/monthly-sleep-chart";
 import { TimeEntry, SleepMetrics } from "@/lib/types";
 import { formatDuration } from "@/lib/utils";
 
@@ -93,6 +94,11 @@ export default function Home() {
       <SummaryCards metrics={metrics} />
       <TimeEntryForm entries={entries} selectedDate={selectedDate} />
       <TimelineDisplay entries={entries} selectedDate={selectedDate} />
+      
+      {/* Графік місячних показників сну */}
+      <div className="mt-8">
+        <MonthlySleepChart />
+      </div>
       
       <div className="mt-8">
         <SleepSettingsForm />

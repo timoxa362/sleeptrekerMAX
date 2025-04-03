@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, parseISO } from "date-fns";
+import { uk } from 'date-fns/locale';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -35,8 +36,8 @@ export function getCurrentTime(): string {
   return `${hours}:${minutes}`;
 }
 
-// Format ISO date string
+// Format ISO date string with Ukrainian locale
 export function formatDate(dateString: string): string {
   if (!dateString) return '';
-  return format(parseISO(dateString), 'PPP');
+  return format(parseISO(dateString), 'PPP', { locale: uk });
 }

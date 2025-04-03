@@ -14,22 +14,22 @@ interface DateSelectorProps {
 }
 
 export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) {
-  // Format the selected date for display
+  // Форматування вибраної дати для відображення
   const formattedDate = formatDate(selectedDate);
   
-  // Get available dates from API
+  // Отримання доступних дат з API
   const datesQuery = useQuery({
     queryKey: ['/api/dates'],
   });
 
   const availableDates = datesQuery.data as string[] || [];
   
-  // State for calendar date
+  // Стан для дати календаря
   const [calendarDate, setCalendarDate] = useState<Date | undefined>(
     selectedDate ? new Date(selectedDate) : undefined
   );
 
-  // Handle calendar date change
+  // Обробка зміни дати в календарі
   const handleCalendarSelect = (date: Date | undefined) => {
     if (date) {
       const dateString = date.toISOString().split('T')[0];
@@ -38,13 +38,13 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
     }
   };
 
-  // Handle select change for date history
+  // Обробка зміни дати у випадаючому списку
   const handleSelectChange = (value: string) => {
     onDateChange(value);
     setCalendarDate(new Date(value));
   };
 
-  // Navigate to previous day
+  // Перейти до попереднього дня
   const goToPreviousDay = () => {
     if (calendarDate) {
       const prevDate = new Date(calendarDate);
@@ -55,7 +55,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
     }
   };
 
-  // Navigate to next day
+  // Перейти до наступного дня
   const goToNextDay = () => {
     if (calendarDate) {
       const nextDate = new Date(calendarDate);
@@ -66,7 +66,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
     }
   };
 
-  // Navigate to today
+  // Перейти до сьогоднішнього дня
   const goToToday = () => {
     const today = new Date();
     const dateString = today.toISOString().split('T')[0];

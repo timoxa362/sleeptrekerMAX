@@ -19,7 +19,8 @@ export default function Home() {
   // Fetch entries for the selected date
   const { 
     data: entries = [], 
-    isLoading: isLoadingEntries 
+    isLoading: isLoadingEntries,
+    refetch: refetchEntries 
   } = useQuery<TimeEntry[]>({ 
     queryKey: ['/api/entries', selectedDate],
     queryFn: async ({ queryKey }) => {
@@ -32,7 +33,8 @@ export default function Home() {
   // Fetch metrics for the selected date
   const { 
     data: metricsData,
-    isLoading: isLoadingMetrics
+    isLoading: isLoadingMetrics,
+    refetch: refetchMetrics
   } = useQuery<{ 
     totalSleepMinutes: number; 
     totalAwakeMinutes: number; 
@@ -56,6 +58,11 @@ export default function Home() {
   // Handle date change
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
+    // Явно оновлюємо дані при зміні дати
+    setTimeout(() => {
+      refetchEntries();
+      refetchMetrics();
+    }, 0);
   };
 
   // Format metrics data

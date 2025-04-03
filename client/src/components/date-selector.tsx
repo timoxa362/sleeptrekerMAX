@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { useCallback } from 'react';
 
 interface DateSelectorProps {
   selectedDate: string;
@@ -29,14 +30,26 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
     selectedDate ? new Date(selectedDate) : undefined
   );
 
+  // Синхронізуємо calendarDate з selectedDate при зміні selectedDate ззовні
+  useEffect(() => {
+    if (selectedDate) {
+      setCalendarDate(new Date(selectedDate));
+    }
+  }, [selectedDate]);
+
+  // Стан для контролю відкриття/закриття календаря
+  const [open, setOpen] = useState(false);
+  
   // Обробка зміни дати в календарі
-  const handleCalendarSelect = (date: Date | undefined) => {
+  const handleCalendarSelect = useCallback((date: Date | undefined) => {
     if (date) {
       const dateString = date.toISOString().split('T')[0];
       setCalendarDate(date);
       onDateChange(dateString);
+      // Закриваємо попоовер після вибору дати
+      setOpen(false);
     }
-  };
+  }, [onDateChange]);
 
   // Обробка зміни дати у випадаючому списку
   const handleSelectChange = (value: string) => {
@@ -67,12 +80,14 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
   };
 
   // Перейти до сьогоднішнього дня
-  const goToToday = () => {
+  const goToToday = useCallback(() => {
     const today = new Date();
     const dateString = today.toISOString().split('T')[0];
     setCalendarDate(today);
     onDateChange(dateString);
-  };
+    // Закриваємо поповер після вибору сьогоднішнього дня
+    setOpen(false);
+  }, [onDateChange]);
 
   return (
     <div className="flex flex-col space-y-2">
@@ -87,7 +102,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
         </Button>
         
         <div className="flex-1 text-center">
-          <Popover>
+          <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -105,6 +120,7 @@ export function DateSelector({ selectedDate, onDateChange }: DateSelectorProps) 
                 mode="single"
                 selected={calendarDate}
                 onSelect={handleCalendarSelect}
+                defaultMonth={calendarDate}
                 initialFocus
               />
               <div className="p-3 border-t">

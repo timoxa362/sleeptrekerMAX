@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -16,16 +16,18 @@ import { useToast } from "@/hooks/use-toast";
 
 interface TimeEntryFormProps {
   entries: TimeEntry[];
+  selectedDate: string;
 }
 
 const timeEntrySchema = z.object({
   type: z.enum(["woke-up", "fell-asleep"]),
   time: z.string().min(1, "Time is required"),
+  date: z.string(),
 });
 
 type FormValues = z.infer<typeof timeEntrySchema>;
 
-export function TimeEntryForm({ entries }: TimeEntryFormProps) {
+export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,8 +36,14 @@ export function TimeEntryForm({ entries }: TimeEntryFormProps) {
     defaultValues: {
       type: "woke-up",
       time: getCurrentTime(),
+      date: selectedDate,
     },
   });
+
+  // Update form when selected date changes
+  useEffect(() => {
+    form.setValue("date", selectedDate);
+  }, [selectedDate, form]);
 
   const validateEntry = (type: EntryType, time: string): boolean => {
     if (!time) {
@@ -47,8 +55,11 @@ export function TimeEntryForm({ entries }: TimeEntryFormProps) {
       return false;
     }
 
-    if (entries.length > 0) {
-      const lastEntry = entries[entries.length - 1];
+    // Filter entries for the selected date
+    const dateEntries = entries.filter(entry => entry.date === selectedDate);
+
+    if (dateEntries.length > 0) {
+      const lastEntry = dateEntries[dateEntries.length - 1];
 
       // Check if entry types alternate (wake-sleep-wake-sleep)
       if (lastEntry.type === type) {
@@ -85,10 +96,19 @@ export function TimeEntryForm({ entries }: TimeEntryFormProps) {
 
       setIsSubmitting(true);
       
-      await apiRequest("POST", "/api/entries", data);
+      // Ensure we're using the current selected date
+      const submissionData = {
+        type: data.type,
+        time: data.time,
+        date: selectedDate,
+      };
       
-      queryClient.invalidateQueries({ queryKey: ['/api/entries'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/metrics'] });
+      await apiRequest("POST", "/api/entries", submissionData);
+      
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ['/api/entries', selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ['/api/metrics', selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dates'] });
       
       // Reset the type to opposite of what was just submitted
       form.setValue("type", data.type === "woke-up" ? "fell-asleep" : "woke-up");
@@ -161,6 +181,15 @@ export function TimeEntryForm({ entries }: TimeEntryFormProps) {
                   )}
                 />
               </div>
+              
+              {/* Hidden date field */}
+              <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <input type="hidden" {...field} />
+                )}
+              />
               
               <div className="flex-none md:self-end">
                 <Button 

@@ -5,14 +5,26 @@ import { insertTimeEntrySchema } from "@shared/schema";
 import { ZodError } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Get all time entries
+  // Get all time entries with optional date filter
   app.get("/api/entries", async (req, res) => {
     try {
-      const entries = await storage.getTimeEntries();
+      const date = req.query.date as string | undefined;
+      const entries = await storage.getTimeEntries(date);
       res.json(entries);
     } catch (error) {
       console.error("Error fetching entries:", error);
       res.status(500).json({ message: "Failed to fetch entries" });
+    }
+  });
+
+  // Get all available dates
+  app.get("/api/dates", async (req, res) => {
+    try {
+      const dates = await storage.getAvailableDates();
+      res.json(dates);
+    } catch (error) {
+      console.error("Error fetching dates:", error);
+      res.status(500).json({ message: "Failed to fetch dates" });
     }
   });
 
@@ -49,10 +61,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Clear all time entries
+  // Clear time entries for a specific date or all dates
   app.delete("/api/entries", async (req, res) => {
     try {
-      await storage.clearTimeEntries();
+      const date = req.query.date as string | undefined;
+      await storage.clearTimeEntries(date);
       res.status(204).send();
     } catch (error) {
       console.error("Error clearing entries:", error);
@@ -60,10 +73,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get sleep metrics
+  // Get sleep metrics for a specific date
   app.get("/api/metrics", async (req, res) => {
     try {
-      const metrics = await storage.calculateSleepMetrics();
+      const date = req.query.date as string || new Date().toISOString().split('T')[0];
+      const metrics = await storage.calculateSleepMetrics(date);
       res.json(metrics);
     } catch (error) {
       console.error("Error calculating metrics:", error);

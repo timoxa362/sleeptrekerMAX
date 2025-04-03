@@ -1,62 +1,87 @@
 import { timeEntries, type TimeEntry, type InsertTimeEntry, type SleepMetrics } from "@shared/schema";
 import { timeToMinutes } from "../client/src/lib/utils";
+import { db } from "./db";
+import { eq, and, desc, asc } from 'drizzle-orm';
 
 export interface IStorage {
-  getTimeEntries(): Promise<TimeEntry[]>;
+  getTimeEntries(date?: string): Promise<TimeEntry[]>;
   createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry>;
   deleteTimeEntry(id: number): Promise<void>;
-  clearTimeEntries(): Promise<void>;
-  calculateSleepMetrics(): Promise<SleepMetrics>;
+  clearTimeEntries(date?: string): Promise<void>;
+  calculateSleepMetrics(date: string): Promise<SleepMetrics>;
+  getAvailableDates(): Promise<string[]>;
 }
 
-export class MemStorage implements IStorage {
-  private entries: Map<number, TimeEntry>;
-  currentId: number;
-
-  constructor() {
-    this.entries = new Map();
-    this.currentId = 1;
-  }
-
-  async getTimeEntries(): Promise<TimeEntry[]> {
-    return Array.from(this.entries.values())
-      .sort((a, b) => {
-        // Sort by created timestamp
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      });
+export class DatabaseStorage implements IStorage {
+  async getTimeEntries(date?: string): Promise<TimeEntry[]> {
+    if (date) {
+      return db.select()
+        .from(timeEntries)
+        .where(eq(timeEntries.date, date))
+        .orderBy(asc(timeEntries.time));
+    } else {
+      return db.select()
+        .from(timeEntries)
+        .orderBy(desc(timeEntries.date), asc(timeEntries.time));
+    }
   }
 
   async createTimeEntry(insertEntry: InsertTimeEntry): Promise<TimeEntry> {
-    const id = this.currentId++;
-    const entry: TimeEntry = { 
-      ...insertEntry, 
-      id, 
-      createdAt: new Date().toISOString() 
-    };
-    this.entries.set(id, entry);
+    const [entry] = await db
+      .insert(timeEntries)
+      .values(insertEntry)
+      .returning();
     return entry;
   }
 
   async deleteTimeEntry(id: number): Promise<void> {
-    this.entries.delete(id);
+    await db
+      .delete(timeEntries)
+      .where(eq(timeEntries.id, id));
   }
 
-  async clearTimeEntries(): Promise<void> {
-    this.entries.clear();
+  async clearTimeEntries(date?: string): Promise<void> {
+    if (date) {
+      await db
+        .delete(timeEntries)
+        .where(eq(timeEntries.date, date));
+    } else {
+      await db
+        .delete(timeEntries);
+    }
   }
 
-  async calculateSleepMetrics(): Promise<SleepMetrics> {
+  async getAvailableDates(): Promise<string[]> {
+    const result = await db
+      .select({ date: timeEntries.date })
+      .from(timeEntries)
+      .groupBy(timeEntries.date)
+      .orderBy(desc(timeEntries.date));
+    
+    return result.map(item => {
+      // Convert the date to a string in YYYY-MM-DD format
+      const date = new Date(item.date);
+      return date.toISOString().split('T')[0];
+    });
+  }
+
+  async calculateSleepMetrics(date: string): Promise<SleepMetrics> {
     // Default metrics
     let totalSleepMinutes = 0;
     let totalAwakeMinutes = 0;
     let nightSleepMinutes = 0;
 
-    // Get all entries sorted by time
-    const entries = await this.getTimeEntries();
+    // Get all entries for the specific date, sorted by time
+    const entries = await this.getTimeEntries(date);
 
     if (entries.length < 2) {
       // Not enough data to calculate metrics
-      return { totalSleepMinutes, totalAwakeMinutes, nightSleepMinutes };
+      return { 
+        totalSleepMinutes, 
+        totalAwakeMinutes, 
+        nightSleepMinutes,
+        date 
+      };
     }
 
     // Check if entries start with wake-up
@@ -115,9 +140,10 @@ export class MemStorage implements IStorage {
     return {
       totalSleepMinutes,
       totalAwakeMinutes,
-      nightSleepMinutes
+      nightSleepMinutes,
+      date
     };
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

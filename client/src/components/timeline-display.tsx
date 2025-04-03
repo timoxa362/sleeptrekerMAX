@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TimeEntry } from "@/lib/types";
-import { formatTime } from "@/lib/utils";
+import { formatTime, formatDate } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { X, Sun, Moon } from "lucide-react";
@@ -11,17 +11,22 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 interface TimelineDisplayProps {
   entries: TimeEntry[];
+  selectedDate: string;
 }
 
-export function TimelineDisplay({ entries }: TimelineDisplayProps) {
+export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps) {
   const { toast } = useToast();
   const [isClearing, setIsClearing] = useState(false);
+  
+  // Filter entries by the selected date
+  const dateEntries = entries.filter(entry => entry.date === selectedDate);
   
   const handleDeleteEntry = async (id: number) => {
     try {
       await apiRequest("DELETE", `/api/entries/${id}`, undefined);
       queryClient.invalidateQueries({ queryKey: ['/api/entries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dates'] });
       
       toast({
         title: "Entry deleted",
@@ -40,13 +45,15 @@ export function TimelineDisplay({ entries }: TimelineDisplayProps) {
   const handleClearEntries = async () => {
     try {
       setIsClearing(true);
-      await apiRequest("DELETE", "/api/entries", undefined);
+      // Clear entries for the specific date
+      await apiRequest("DELETE", `/api/entries?date=${selectedDate}`, undefined);
       queryClient.invalidateQueries({ queryKey: ['/api/entries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dates'] });
       
       toast({
         title: "Entries cleared",
-        description: "All entries have been cleared successfully",
+        description: `All entries for ${formatDate(selectedDate)} have been cleared successfully`,
       });
     } catch (error) {
       toast({
@@ -60,27 +67,31 @@ export function TimelineDisplay({ entries }: TimelineDisplayProps) {
     }
   };
 
+  const isToday = new Date().toISOString().split('T')[0] === selectedDate;
+
   return (
     <Card className="mb-6">
       <CardContent className="pt-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-medium">Today's Timeline</h2>
+          <h2 className="text-lg font-medium">
+            {isToday ? "Today's Timeline" : `Timeline for ${formatDate(selectedDate)}`}
+          </h2>
           
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button 
                 variant="ghost" 
                 className="text-sm text-red-500 hover:text-red-600 font-medium"
-                disabled={entries.length === 0 || isClearing}
+                disabled={dateEntries.length === 0 || isClearing}
               >
-                Clear All
+                Clear Day
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will remove all time entries. This action cannot be undone.
+                  This will remove all time entries for {formatDate(selectedDate)}. This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -92,13 +103,13 @@ export function TimelineDisplay({ entries }: TimelineDisplayProps) {
         </div>
         
         <div className="space-y-3">
-          {entries.length === 0 ? (
+          {dateEntries.length === 0 ? (
             <div className="py-8 text-center text-slate-500">
               <Bed className="h-6 w-6 mx-auto mb-2" />
-              <p>No entries yet. Add your first sleep/wake time above.</p>
+              <p>No entries for this date. Add a sleep/wake time above.</p>
             </div>
           ) : (
-            entries.map((entry) => (
+            dateEntries.map((entry) => (
               <div 
                 key={entry.id} 
                 className={`flex items-center p-3 rounded-md border ${

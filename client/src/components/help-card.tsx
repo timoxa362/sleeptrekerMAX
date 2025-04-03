@@ -18,6 +18,14 @@ export function HelpCard() {
             <span className="text-blue-500 mr-2">•</span>
             <span>View the summary at the top to see sleep metrics</span>
           </li>
+          <li className="flex items-start">
+            <span className="text-green-500 mr-2">•</span>
+            <span>Use the date selector to view or add entries for different days</span>
+          </li>
+          <li className="flex items-start">
+            <span className="text-purple-500 mr-2">•</span>
+            <span>Select a date from history to see previous sleep patterns</span>
+          </li>
         </ul>
       </CardContent>
     </Card>

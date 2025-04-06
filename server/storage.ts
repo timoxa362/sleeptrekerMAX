@@ -351,45 +351,45 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Для правильного розрахунку нічного сну:
-    // 1. Знаходимо останній запис "заснув" для поточного дня
-    // 2. Шукаємо перший запис "прокинувся" для наступного дня
+    // 1. Знаходимо перше пробудження поточного дня
+    // 2. Знаходимо останній запис "заснув" для попереднього дня
 
-    // Останній запис "заснув" для поточного дня
-    let nightSleepEntry: TimeEntry | null = null;
-    for (let i = entries.length - 1; i >= 0; i--) {
-      if (entries[i].type === 'fell-asleep') {
-        nightSleepEntry = entries[i];
+    // Перше пробудження поточного дня
+    let morningWakeEntry: TimeEntry | null = null;
+    for (const entry of entries) {
+      if (entry.type === 'woke-up') {
+        morningWakeEntry = entry;
         break;
       }
     }
 
-    // Якщо є запис, що дитина заснула в поточний день
-    if (nightSleepEntry) {
-      const nightStartTime = timeToMinutes(nightSleepEntry.time);
+    // Якщо є запис пробудження в поточний день
+    if (morningWakeEntry) {
+      const morningWakeTime = timeToMinutes(morningWakeEntry.time);
       
       // Перетворення дати у об'єкт
       const currentDate = new Date(date);
       
-      // Розрахунок наступної дати
-      const nextDay = new Date(currentDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      const nextDayString = nextDay.toISOString().split('T')[0];
+      // Розрахунок попередньої дати
+      const previousDay = new Date(currentDate);
+      previousDay.setDate(previousDay.getDate() - 1);
+      const previousDayString = previousDay.toISOString().split('T')[0];
       
-      // Отримуємо записи для наступного дня
-      const nextDayEntries = await this.getTimeEntries(nextDayString);
+      // Отримуємо записи для попереднього дня
+      const previousDayEntries = await this.getTimeEntries(previousDayString);
       
-      // Шукаємо перший запис "прокинувся" для наступного дня
-      let morningWakeEntry: TimeEntry | null = null;
-      for (const entry of nextDayEntries) {
-        if (entry.type === 'woke-up') {
-          morningWakeEntry = entry;
+      // Шукаємо останній запис "заснув" для попереднього дня
+      let nightSleepEntry: TimeEntry | null = null;
+      for (let i = previousDayEntries.length - 1; i >= 0; i--) {
+        if (previousDayEntries[i].type === 'fell-asleep') {
+          nightSleepEntry = previousDayEntries[i];
           break;
         }
       }
       
-      // Якщо знайдено запис пробудження наступного дня
-      if (morningWakeEntry) {
-        const morningWakeTime = timeToMinutes(morningWakeEntry.time);
+      // Якщо знайдено запис засинання попереднього дня
+      if (nightSleepEntry) {
+        const nightStartTime = timeToMinutes(nightSleepEntry.time);
         
         // Розрахунок нічного сну (з урахуванням переходу через північ)
         nightSleepMinutes = (24 * 60 - nightStartTime) + morningWakeTime;

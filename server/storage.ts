@@ -25,10 +25,10 @@ export interface IStorage {
   clearTimeEntries(date?: string): Promise<void>;
   calculateSleepMetrics(date: string): Promise<SleepMetrics>;
   getAvailableDates(): Promise<string[]>;
-  
+
   // Новий метод для отримання місячних метрик
   getMonthlyMetrics(month: string): Promise<MonthlyMetricsData[]>;
-  
+
   // Sleep settings methods
   getSleepSettings(): Promise<SleepSettings | undefined>;
   createOrUpdateSleepSettings(settings: InsertSleepSettings): Promise<SleepSettings>;
@@ -43,12 +43,12 @@ export class DatabaseStorage implements IStorage {
       ? `${parseInt(month.split('-')[0]) + 1}-01` 
       : `${month.split('-')[0]}-${(parseInt(month.split('-')[1]) + 1).toString().padStart(2, '0')}`;
     const endDate = `${nextMonth}-01`;
-    
+
     // Для розрахунку нічного сну потрібні також записи з першого дня наступного місяця
     const endDateInclusive = new Date(endDate);
     endDateInclusive.setDate(endDateInclusive.getDate() + 1);
     const endDateInclusiveStr = endDateInclusive.toISOString().split('T')[0];
-    
+
     // Отримуємо всі записи за вказаний місяць та перший день наступного місяця
     const allEntries = await db.select()
       .from(timeEntries)
@@ -71,19 +71,19 @@ export class DatabaseStorage implements IStorage {
 
     // Обчислюємо метрики для кожної дати
     const result: MonthlyMetricsData[] = [];
-    
+
     // Відсортуємо дати для обробки
     const sortedDates = Object.keys(entriesByDate).sort();
-    
+
     // Опрацьовуємо кожну дату в місяці (крім першого дня наступного місяця)
     for (let i = 0; i < sortedDates.length; i++) {
       const date = sortedDates[i];
-      
+
       // Пропускаємо дати з наступного місяця (вони потрібні лише для розрахунку нічного сну)
       if (date >= endDate) continue;
-      
+
       const entries = entriesByDate[date];
-      
+
       // Розрахунок метрик для цієї дати
       let totalSleepMinutes = 0;
       let totalAwakeMinutes = 0;
@@ -92,7 +92,7 @@ export class DatabaseStorage implements IStorage {
       if (entries.length < 2) {
         // Недостатньо даних для розрахунку загального часу сну та бадьорості
         // Але все одно спробуємо розрахувати нічний сон, якщо можливо
-        
+
         // Для правильного розрахунку нічного сну потрібно знайти останній запис "заснув"
         let nightSleepEntry: TimeEntry | null = null;
         for (let j = entries.length - 1; j >= 0; j--) {
@@ -101,13 +101,13 @@ export class DatabaseStorage implements IStorage {
             break;
           }
         }
-        
+
         // Якщо є запис засинання і дата не є останньою у місяці
         const nextDateIndex = i + 1;
         if (nightSleepEntry && nextDateIndex < sortedDates.length) {
           const nextDate = sortedDates[nextDateIndex];
           const nextDayEntries = entriesByDate[nextDate];
-          
+
           // Шукаємо перше пробудження наступного дня
           let morningWakeEntry: TimeEntry | null = null;
           for (const entry of nextDayEntries || []) {
@@ -116,17 +116,17 @@ export class DatabaseStorage implements IStorage {
               break;
             }
           }
-          
+
           // Якщо знайдено пробудження наступного дня
           if (morningWakeEntry) {
             const nightStartTime = timeToMinutes(nightSleepEntry.time);
             const morningWakeTime = timeToMinutes(morningWakeEntry.time);
-            
+
             // Розрахунок нічного сну (завжди через північ)
             nightSleepMinutes = (24 * 60 - nightStartTime) + morningWakeTime;
           }
         }
-        
+
         result.push({
           day: date,
           totalSleepMinutes,
@@ -143,7 +143,7 @@ export class DatabaseStorage implements IStorage {
 
         const startTime = timeToMinutes(currentEntry.time);
         const endTime = timeToMinutes(nextEntry.time);
-        
+
         // Обробка переходу через північ
         let duration = endTime - startTime;
         if (duration < 0) {
@@ -159,44 +159,44 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      // Для правильного розрахунку нічного сну:
-      // 1. Знаходимо останній запис "заснув" для поточного дня
-      // 2. Шукаємо перший запис "прокинувся" для наступного дня
-      
-      // Останній запис "заснув" для поточного дня
-      let nightSleepEntry: TimeEntry | null = null;
-      for (let j = entries.length - 1; j >= 0; j--) {
-        if (entries[j].type === 'fell-asleep') {
-          nightSleepEntry = entries[j];
+      // Для розрахунку нічного сну попередньої ночі:
+      // 1. Знаходимо перше пробудження поточного дня
+      // 2. Шукаємо останній запис "заснув" з попереднього дня
+
+      // Перше пробудження поточного дня
+      let morningWakeEntry: TimeEntry | null = null;
+      for (const entry of entries) {
+        if (entry.type === 'woke-up') {
+          morningWakeEntry = entry;
           break;
         }
       }
-      
-      // Якщо є запис засинання і дата не є останньою у місяці
-      const nextDateIndex = i + 1;
-      if (nightSleepEntry && nextDateIndex < sortedDates.length) {
-        const nextDate = sortedDates[nextDateIndex];
-        const nextDayEntries = entriesByDate[nextDate];
-        
-        // Шукаємо перше пробудження наступного дня
-        let morningWakeEntry: TimeEntry | null = null;
-        for (const entry of nextDayEntries || []) {
-          if (entry.type === 'woke-up') {
-            morningWakeEntry = entry;
+
+      // Якщо є запис пробудження і це не перший день місяця
+      const prevDateIndex = i - 1;
+      if (morningWakeEntry && prevDateIndex >= 0) {
+        const prevDate = sortedDates[prevDateIndex];
+        const prevDayEntries = entriesByDate[prevDate];
+
+        // Шукаємо останній запис "заснув" з попереднього дня
+        let nightSleepEntry: TimeEntry | null = null;
+        for (let j = (prevDayEntries || []).length - 1; j >= 0; j--) {
+          if (prevDayEntries[j].type === 'fell-asleep') {
+            nightSleepEntry = prevDayEntries[j];
             break;
           }
         }
-        
-        // Якщо знайдено пробудження наступного дня
-        if (morningWakeEntry) {
+
+        // Якщо знайдено запис засинання з попереднього дня
+        if (nightSleepEntry) {
           const nightStartTime = timeToMinutes(nightSleepEntry.time);
           const morningWakeTime = timeToMinutes(morningWakeEntry.time);
-          
+
           // Розрахунок нічного сну (завжди через північ)
           nightSleepMinutes = (24 * 60 - nightStartTime) + morningWakeTime;
         }
       }
-      
+
       // Якщо нічний сон все ще не вдалося розрахувати, використовуємо стару логіку
       if (nightSleepMinutes === 0) {
         // Перше ранкове пробудження
@@ -281,7 +281,7 @@ export class DatabaseStorage implements IStorage {
       .from(timeEntries)
       .groupBy(timeEntries.date)
       .orderBy(desc(timeEntries.date));
-    
+
     return result.map(item => {
       // Convert the date to a string in YYYY-MM-DD format
       const date = new Date(item.date);
@@ -297,7 +297,7 @@ export class DatabaseStorage implements IStorage {
 
     // Get all entries for the specific date, sorted by time
     const entries = await this.getTimeEntries(date);
-    
+
     // Get sleep settings for required sleep calculation
     const settings = await this.getSleepSettings();
     let requiredSleepMinutes = settings?.requiredSleepMinutes;
@@ -333,7 +333,7 @@ export class DatabaseStorage implements IStorage {
 
       const startTime = timeToMinutes(currentEntry.time);
       const endTime = timeToMinutes(nextEntry.time);
-      
+
       // Handle overnight crossing
       let duration = endTime - startTime;
       if (duration < 0) {
@@ -366,18 +366,18 @@ export class DatabaseStorage implements IStorage {
     // Якщо є запис, що дитина заснула в поточний день
     if (nightSleepEntry) {
       const nightStartTime = timeToMinutes(nightSleepEntry.time);
-      
+
       // Перетворення дати у об'єкт
       const currentDate = new Date(date);
-      
+
       // Розрахунок наступної дати
       const nextDay = new Date(currentDate);
       nextDay.setDate(nextDay.getDate() + 1);
       const nextDayString = nextDay.toISOString().split('T')[0];
-      
+
       // Отримуємо записи для наступного дня
       const nextDayEntries = await this.getTimeEntries(nextDayString);
-      
+
       // Шукаємо перший запис "прокинувся" для наступного дня
       let morningWakeEntry: TimeEntry | null = null;
       for (const entry of nextDayEntries) {
@@ -386,16 +386,16 @@ export class DatabaseStorage implements IStorage {
           break;
         }
       }
-      
+
       // Якщо знайдено запис пробудження наступного дня
       if (morningWakeEntry) {
         const morningWakeTime = timeToMinutes(morningWakeEntry.time);
-        
+
         // Розрахунок нічного сну (з урахуванням переходу через північ)
         nightSleepMinutes = (24 * 60 - nightStartTime) + morningWakeTime;
       }
     }
-    
+
     // Якщо не вдалося знайти потрібні записи (немає запису засинання або пробудження)
     // можемо спробувати альтернативний підхід з поточними даними
     if (nightSleepMinutes === 0) {
@@ -434,48 +434,48 @@ export class DatabaseStorage implements IStorage {
 
     // Calculate time to next scheduled sleep (nap or bedtime)
     let timeToNextScheduledSleep: { minutes: number; type: 'nap' | 'bedtime' } | undefined = undefined;
-    
+
     // Get current time
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentTimeInMinutes = currentHour * 60 + currentMinute;
-    
+
     // Check if selected date is today
     const selectedDate = new Date(date);
     const today = new Date();
     const isToday = selectedDate.toDateString() === today.toDateString();
-    
+
     if (isToday) {
       let napTimeInMinutes: number | null = null;
       let bedtimeInMinutes: number | null = null;
-      
+
       if (scheduledNapTime) {
         const [napHour, napMinute] = scheduledNapTime.split(':').map(Number);
         napTimeInMinutes = napHour * 60 + napMinute;
       }
-      
+
       if (scheduledBedtime) {
         const [bedHour, bedMinute] = scheduledBedtime.split(':').map(Number);
         bedtimeInMinutes = bedHour * 60 + bedMinute;
       }
-      
+
       // For both scheduled times, calculate minutes until each
       let minutesToNap: number | null = null;
       let minutesToBedtime: number | null = null;
-      
+
       if (napTimeInMinutes !== null) {
         minutesToNap = napTimeInMinutes > currentTimeInMinutes 
           ? napTimeInMinutes - currentTimeInMinutes 
           : (24 * 60 - currentTimeInMinutes) + napTimeInMinutes;
       }
-      
+
       if (bedtimeInMinutes !== null) {
         minutesToBedtime = bedtimeInMinutes > currentTimeInMinutes 
           ? bedtimeInMinutes - currentTimeInMinutes 
           : (24 * 60 - currentTimeInMinutes) + bedtimeInMinutes;
       }
-      
+
       // Choose the closest sleep time
       if (minutesToNap !== null && minutesToBedtime !== null) {
         if (minutesToNap < minutesToBedtime) {
@@ -500,21 +500,21 @@ export class DatabaseStorage implements IStorage {
       timeToNextScheduledSleep
     };
   }
-  
+
   async getSleepSettings(): Promise<SleepSettings | undefined> {
     // Get the first (and should be only) sleep settings record
     const settings = await db
       .select()
       .from(sleepSettings)
       .limit(1);
-    
+
     return settings[0];
   }
-  
+
   async createOrUpdateSleepSettings(insertSettings: InsertSleepSettings): Promise<SleepSettings> {
     // Check if settings already exist
     const existingSettings = await this.getSleepSettings();
-    
+
     if (existingSettings) {
       // Update existing settings
       const [updated] = await db
@@ -525,7 +525,7 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(sleepSettings.id, existingSettings.id))
         .returning();
-      
+
       return updated;
     } else {
       // Create new settings
@@ -533,11 +533,11 @@ export class DatabaseStorage implements IStorage {
         .insert(sleepSettings)
         .values(insertSettings)
         .returning();
-      
+
       return created;
     }
   }
-  
+
   /**
    * Обчислює середню тривалість сну за вказану кількість днів
    * Використовується, коли в налаштуваннях вказано від'ємне значення
@@ -545,57 +545,57 @@ export class DatabaseStorage implements IStorage {
   async calculateAverageSleepTime(currentDate: string, daysToAverage: number): Promise<number> {
     // Отримуємо доступні дати сортовані в порядку спадання (найновіші спочатку)
     const availableDates = await this.getAvailableDates();
-    
+
     // Фільтруємо дати, які не перевищують поточну дату, максимум daysToAverage днів
     const targetDates = availableDates
       .filter(date => date <= currentDate)
       .slice(0, daysToAverage);
-    
+
     if (targetDates.length === 0) {
       // Якщо дат немає, повертаємо значення за замовчуванням
       return 720; // 12 годин як значення за замовчуванням
     }
-    
+
     // Обчислюємо метрики для кожної дати
     let totalSleepMinutes = 0;
     let datesToCalculate = 0;
-    
+
     for (const date of targetDates) {
       // Отримуємо записи для цієї дати
       const entries = await this.getTimeEntries(date);
-      
+
       if (entries.length >= 2) {
         // Обчислюємо загальний час сну для цієї дати
         let sleepMinutes = 0;
-        
+
         for (let i = 0; i < entries.length - 1; i++) {
           const currentEntry = entries[i];
           const nextEntry = entries[i + 1];
-          
+
           if (currentEntry.type === 'fell-asleep' && nextEntry.type === 'woke-up') {
             const startTime = timeToMinutes(currentEntry.time);
             const endTime = timeToMinutes(nextEntry.time);
-            
+
             // Обробка переходу через північ
             let duration = endTime - startTime;
             if (duration < 0) {
               duration = (24 * 60 - startTime) + endTime;
             }
-            
+
             sleepMinutes += duration;
           }
         }
-        
+
         totalSleepMinutes += sleepMinutes;
         datesToCalculate++;
       }
     }
-    
+
     // Обчислюємо середнє значення, якщо є хоча б один день з даними
     if (datesToCalculate > 0) {
       return Math.round(totalSleepMinutes / datesToCalculate);
     }
-    
+
     // Якщо немає днів з достатньою кількістю даних
     return 720; // 12 годин як значення за замовчуванням
   }

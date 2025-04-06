@@ -138,7 +138,7 @@ export function TimelineDisplay({ entries, selectedDate }: TimelineDisplayProps)
           {dateEntries.length === 0 ? (
             <div className="py-8 text-center text-slate-500">
               <Bed className="h-6 w-6 mx-auto mb-2" />
-              <p>Немає записів на цю дату. Додайте час сну/пробудження вище.</p>
+              <p>No entries for this date. Add sleep/wake time above.</p>
             </div>
           ) : (
             dateEntries.map((entry) => (

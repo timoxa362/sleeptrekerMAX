@@ -76,28 +76,24 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
     form.clearErrors("time");
   }, [selectedDate, entries, form]); // `form` dependency is okay here as it's stable
 
-  // ================== CHANGED SECTION START ==================
-  // REMOVED: useEffect hook with setInterval that updated time every second.
-  // This allows the user to manually edit the time field after it's initially set.
+  // State to track if the user has manually edited the time
+  const [isTimeManuallyEdited, setIsTimeManuallyEdited] = useState(false);
 
-  /*
-  // OLD CODE THAT WAS REMOVED:
-  // Стан для поточного часу, який оновлювався щосекунди (більше не потрібен для форми)
-  // const [currentTimeDisplay, setCurrentTimeDisplay] = useState(getCurrentTime());
-
-  // Інтервал для оновлення поточного часу кожну секунду (ВИДАЛЕНО)
+  // Update time every minute if not manually edited
   useEffect(() => {
+    if (!isTimeManuallyEdited) {
       const updateInterval = setInterval(() => {
-      const newTime = getCurrentTime();
-      // setCurrentTimeDisplay(newTime); // Більше не використовується
-      // form.setValue("time", newTime); // Цей рядок перезаписував введення користувача
-      }, 1000);
+        form.setValue("time", getCurrentTime());
+      }, 60000); // Update every minute (60000ms)
 
-      // Очищуємо інтервал при розмонтуванні компонента
       return () => clearInterval(updateInterval);
-  }, [form]); // Залежність від form тут була непотрібна або могла викликати проблеми
-  */
-  // =================== CHANGED SECTION END ===================
+    }
+  }, [form, isTimeManuallyEdited]);
+
+  // Reset manual edit flag when date or entries change
+  useEffect(() => {
+    setIsTimeManuallyEdited(false);
+  }, [selectedDate, entries]);
 
   const validateEntry = (type: EntryType, time: string): boolean => {
     if (!time) {
@@ -259,8 +255,15 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
                       </Label>
                       {/* ================== CHANGED SECTION END ================== */}
                       <FormControl>
-                        {/* Input field now retains user edits */}
-                        <Input type="time" id="entry-time" {...field} />
+                        <Input 
+                          type="time" 
+                          id="entry-time" 
+                          {...field} 
+                          onChange={(e) => {
+                            setIsTimeManuallyEdited(true);
+                            field.onChange(e);
+                          }}
+                        />
                       </FormControl>
                     </FormItem>
                   )}

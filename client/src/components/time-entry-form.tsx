@@ -217,7 +217,7 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
                         htmlFor="entry-type"
                         className="text-sm font-medium text-slate-700 mb-1"
                       >
-                        Тип запису (автовибір)
+                        Тип запису
                       </Label>
                       <Select
                         onValueChange={field.onChange}
@@ -251,7 +251,7 @@ export function TimeEntryForm({ entries, selectedDate }: TimeEntryFormProps) {
                         className="text-sm font-medium text-slate-700 mb-1"
                       >
                         {/* Changed label text as it no longer auto-updates constantly */}
-                        Час (поточний при завантаженні)
+                        Час
                       </Label>
                       {/* ================== CHANGED SECTION END ================== */}
                       <FormControl>

@@ -8,10 +8,9 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
-// Create a PostgreSQL connection pool with the pooler URL
-const connectionString = process.env.DATABASE_URL.replace('.us-east-2', '-pooler.us-east-2');
+// Create a PostgreSQL connection pool
 const pool = new Pool({
-  connectionString,
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: true,
   },
